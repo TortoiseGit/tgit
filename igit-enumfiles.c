@@ -38,6 +38,7 @@ static LPSTR l_lpszFileName;
 
 static BOOL l_bDirStatus;
 static int l_nLastStatus;
+static int l_nEnumeratedCached = 0;
 
 
 static inline char GetStatusChar(int nStatus)
@@ -46,14 +47,15 @@ static inline char GetStatusChar(int nStatus)
 	{
 	case WGFS_Normal: return 'N';
 	case WGFS_Modified: return 'M';
-	//case WGFS_Staged: return 'S';
-	//case WGFS_Added: return 'A';
+	case WGFS_Staged: return 'S';
+	case WGFS_Added: return 'A';
 	case WGFS_Conflicted: return 'C';
 	case WGFS_Deleted: return 'D';
 
+	case WGFS_Unversioned: return 'U';
+	case WGFS_Ignored: return 'I';
 	case WGFS_Unknown: return '?';
 	case WGFS_Empty: return 'E';
-	//case WGFS_Unversioned: return 'U';
 	}
 
 	return '?';
@@ -100,6 +102,8 @@ static BOOL enum_ce_entry(struct cache_entry *ce, struct stat *st)
 	fputs(sFileName, stdout);
 	fputc(0, stdout);
 
+	l_nEnumeratedCached++;
+
 	return FALSE;
 }
 
@@ -137,6 +141,50 @@ static BOOL process_ce_entry_status(struct cache_entry *ce, struct stat *st)
 	//ef.sha1 = ce->sha1;
 
 	return TRUE;
+}
+
+
+static void enum_unversioned(struct dir_entry **files, int nr, BOOL bIgnored)
+{
+	int i;
+	for (i=0; i<nr; i++)
+	{
+		struct dir_entry *ent = files[i];
+
+		// make sure to skip dirs
+		if (ent->name[ent->len-1] == '/')
+			continue;
+
+		if (!cache_name_is_other(ent->name, ent->len))
+			continue;
+
+		int len = prefix_len;
+
+		if (len >= ent->len)
+			die("igit status: internal error - directory entry not superset of prefix");
+
+		if (pathspec && !pathspec_match(pathspec, ps_matched, ent->name, len))
+			continue;
+
+		LPCSTR sFileName;
+
+		if (!l_bFullPath)
+		{
+			sFileName = ent->name + prefix_offset;
+		}
+		else
+		{
+			strcpy(l_lpszFileName, ent->name);
+			sFileName = l_sFullPathBuf;
+		}
+
+		if (bIgnored)
+			fputs("F I 0000000000000000000000000000000000000000 ", stdout);
+		else
+			fputs("F U 0000000000000000000000000000000000000000 ", stdout);
+		fputs(sFileName, stdout);
+		fputc(0, stdout);
+	}
 }
 
 
@@ -396,6 +444,18 @@ BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const cha
 	tag_killed = "";
 	tag_modified = "";
 
+	const BOOL bSubDir = pszSubPath && is_dir(pszProjectPath, pszSubPath);
+
+	LPCSTR pszSubPathSpec = pszSubPath;
+	if (bSubDir && !(nFlags & WGEFF_SingleFile))
+	{
+		int len = strlen(pszSubPath);
+		char *s = (char*)malloc(len+3);
+		strcpy(s, pszSubPath);
+		strcpy(s+len, "/*");
+		pszSubPathSpec = s;
+	}
+
 	int i;
 	//int exc_given = 0, require_work_tree = 0;
 	struct dir_struct _dir;
@@ -415,8 +475,11 @@ BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const cha
 	struct dir_struct *dir = &_dir;
 
 	const char *argv[2];
-	argv[0] = pszSubPath;
+	argv[0] = pszSubPathSpec;
 	argv[1] = NULL;
+
+	if (/*require_work_tree &&*/ !is_inside_work_tree())
+		setup_work_tree();
 
 	pathspec = get_pathspec(prefix, argv);
 
@@ -439,7 +502,9 @@ BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const cha
 	{
 		// calc length of pathspec plus 1 for a / (unless it already ends with a slash)
 		pathspec_len = strlen(*pathspec);
-		if ((*pathspec)[pathspec_len-1] != '/' && (*pathspec)[pathspec_len-1] != '\\')
+		if ((*pathspec)[pathspec_len-1] == '*')
+			pathspec_len--;
+		if ((*pathspec)[pathspec_len-1] != '/')
 			pathspec_len++;
 	}
 	const char *refpath = (pathspec && *pathspec) ? *pathspec : "";
@@ -450,7 +515,7 @@ BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const cha
 
 	l_bNoRecurseDir = FALSE;
 
-	BOOL single_dir = (nFlags & WGEFF_SingleFile) && (!pszSubPath || is_dir(pszProjectPath, pszSubPath));
+	BOOL single_dir = (nFlags & WGEFF_SingleFile) && (!pszSubPath || bSubDir);
 	// adjust other flags for best performance / correct results when WGEFF_SingleFile is set
 	if (single_dir && (nFlags & WGEFF_NoRecurse))
 		l_bNoRecurseDir = TRUE;
@@ -575,6 +640,54 @@ BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const cha
 
 		if (l_bDirStatus && IsStatusRelevantForDirs(l_nLastStatus))
 			update_dirs(ce, pathspec_len, TRUE);
+	}
+
+	// enumerate unversioned files
+	if ( !(nFlags & WGEFF_SingleFile) )
+	{
+		const char *path = ".", *base = "";
+		int baselen = prefix_len;
+
+		if (baselen)
+			path = base = prefix;
+
+		setup_standard_excludes(dir);
+		dir->collect_ignored = 1;
+		dir->show_ignored = 0;
+		dir->show_other_directories = 0;
+		dir->hide_empty_directories = 0;
+		dir->collect_all_ignored = 1;
+		dir->no_recurse_readdir = no_recurse ? 1 : 0;
+		read_directory(dir, path, base, baselen, pathspec);
+
+		enum_unversioned(dir->entries, dir->nr, FALSE);
+		enum_unversioned(dir->ignored, dir->ignored_nr, TRUE);
+	}
+	else if (!single_dir && !l_nEnumeratedCached)
+	{
+		// get status of a single unversioned file
+
+		setup_standard_excludes(dir);
+
+		LPCSTR sFileName;
+
+		if (!l_bFullPath)
+		{
+			sFileName = pszSubPath + prefix_offset;
+		}
+		else
+		{
+			strcpy(l_lpszFileName, pszSubPath);
+			sFileName = l_sFullPathBuf;
+		}
+
+		int dtype = DT_REG;
+		if ( excluded(dir, pszSubPath, &dtype) )
+			fputs("F I 0000000000000000000000000000000000000000 ", stdout);
+		else
+			fputs("F U 0000000000000000000000000000000000000000 ", stdout);
+		fputs(sFileName, stdout);
+		fputc(0, stdout);
 	}
 
 	if (l_bDirStatus)
