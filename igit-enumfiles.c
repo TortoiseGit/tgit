@@ -145,7 +145,6 @@ static BOOL process_ce_entry_status(struct cache_entry *ce, struct stat *st)
 }
 
 
-static BOOL is_dir(const char *sProjectPath, const char *sSubPath);
 static void update_dirs_unversioned(struct dir_entry *ce, int nPathNameOffset);
 
 static void enum_unversioned(struct dir_entry **files, int nr, BOOL bIgnored)
@@ -155,11 +154,7 @@ static void enum_unversioned(struct dir_entry **files, int nr, BOOL bIgnored)
 	{
 		struct dir_entry *ent = files[i];
 
-		// make sure to skip dirs (unless an explicitly ignored dir)
-		if (!bIgnored && ent->name[ent->len-1] == '/')
-				continue;
-
-		if (!cache_name_is_other(ent->name, ent->len))
+		if (ent->name[ent->len-1] != '/' && !cache_name_is_other(ent->name, ent->len))
 			continue;
 
 		int len = prefix_len;
@@ -185,7 +180,7 @@ static void enum_unversioned(struct dir_entry **files, int nr, BOOL bIgnored)
 		if (bIgnored)
 		{
 			// because we specified collect_all_ignored this may be a directory that was ignored
-			if ( !is_dir(".", ent->name) )
+			if (ent->name[ent->len-1] != '/')
 			{
 				if (l_bDirStatus)
 				{
@@ -210,13 +205,26 @@ static void enum_unversioned(struct dir_entry **files, int nr, BOOL bIgnored)
 		}
 		else
 		{
-			if (l_bDirStatus)
+			if (ent->name[ent->len-1] != '/')
 			{
-				l_nLastStatus = WGFS_Unversioned;
-				update_dirs_unversioned(ent, 0);
-			}
+				if (l_bDirStatus)
+				{
+					l_nLastStatus = WGFS_Unversioned;
+					update_dirs_unversioned(ent, 0);
+				}
 
-			fputs("F U 0000000000000000000000000000000000000000 ", stdout);
+				fputs("F U 0000000000000000000000000000000000000000 ", stdout);
+			}
+			else
+			{
+				if (l_bDirStatus)
+				{
+					l_nLastStatus = l_nEmptyDirStatus;
+					update_dirs_unversioned(ent, 0);
+				}
+
+				continue;
+			}
 		}
 		fputs(sFileName, stdout);
 		fputc(0, stdout);
@@ -358,6 +366,10 @@ static void update_dirs_unversioned_rec(LPCSTR lpszFileName, UINT nDirLen, struc
 	{
 		// no more dirs in pathname (ie we are in the dir the file is located)
 
+		if (l_nEmptyDirStatus == WGFS_Unknown)
+			// only want dirst enumerated without recursive status
+			return;
+
 		const int nFileStatus = l_nLastStatus;
 
 		if (nFileStatus > dir->nStatus)
@@ -427,6 +439,10 @@ static void update_dirs_rec(LPCSTR lpszFileName, UINT nDirLen, struct cache_entr
 	if (!p)
 	{
 		// no more dirs in pathname (ie we are in the dir the file is located)
+
+		if (l_nEmptyDirStatus == WGFS_Unknown)
+			// only want dirst enumerated without recursive status
+			return;
 
 		if (!bStatusCached)
 		{
@@ -662,6 +678,14 @@ BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const cha
 
 	l_bSkipNormalDirs = ((nFlags & (WGEFF_DirStatusDelta|WGEFF_DirStatusAll)) == WGEFF_DirStatusDelta);
 
+	if (!(nFlags & WGEFF_SingleFile) && !l_bDirStatus)
+	{
+		// no recursive dir status requested, list all dirs as unknown
+		l_bDirStatus = TRUE;
+		l_nEmptyDirStatus = l_nMinStatusRelevantForDirs = WGFS_Unknown;
+		l_bSkipNormalDirs = FALSE;
+	}
+
 	*l_sFullPathBuf = 0;
 	l_lpszFileName = NULL;
 	if (l_bFullPath)
@@ -821,6 +845,7 @@ BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const cha
 		dir->show_other_directories = 0;
 		dir->hide_empty_directories = 0;
 		dir->collect_all_ignored = 1;
+		dir->collect_directories = 1;
 		dir->no_recurse_readdir = no_recurse ? 1 : 0;
 		read_directory(dir, path, base, baselen, pathspec);
 
@@ -880,7 +905,7 @@ BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const cha
 		}
 		else if (pathspec_len)
 		{
-			lpszRootDir = pszSubPath;
+			lpszRootDir = ".";
 
 			strcpy(l_sFullPathBuf, *pathspec);
 			l_sFullPathBuf[pathspec_len-1] = '/';
