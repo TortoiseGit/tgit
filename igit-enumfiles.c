@@ -684,6 +684,7 @@ BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const cha
 		l_bDirStatus = TRUE;
 		l_nEmptyDirStatus = l_nMinStatusRelevantForDirs = WGFS_Unknown;
 		l_bSkipNormalDirs = FALSE;
+		l_dirTree.nStatus = WGFS_Unknown;
 	}
 
 	*l_sFullPathBuf = 0;
