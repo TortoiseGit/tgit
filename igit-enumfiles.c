@@ -185,7 +185,7 @@ static void enum_unversioned(struct dir_entry **files, int nr, BOOL bIgnored)
 				if (l_bDirStatus)
 				{
 					l_nLastStatus = WGFS_Ignored;
-					update_dirs_unversioned(ent, 0);
+					update_dirs_unversioned(ent, len);
 				}
 
 				fputs("F I 0000000000000000000000000000000000000000 ", stdout);
@@ -196,7 +196,7 @@ static void enum_unversioned(struct dir_entry **files, int nr, BOOL bIgnored)
 				{
 					const int nOrgEmptyDirStatus = l_nEmptyDirStatus;
 					l_nLastStatus = l_nEmptyDirStatus = WGFS_Ignored;
-					update_dirs_unversioned(ent, 0);
+					update_dirs_unversioned(ent, len);
 					l_nEmptyDirStatus = nOrgEmptyDirStatus;
 				}
 
@@ -210,7 +210,7 @@ static void enum_unversioned(struct dir_entry **files, int nr, BOOL bIgnored)
 				if (l_bDirStatus)
 				{
 					l_nLastStatus = WGFS_Unversioned;
-					update_dirs_unversioned(ent, 0);
+					update_dirs_unversioned(ent, len);
 				}
 
 				fputs("F U 0000000000000000000000000000000000000000 ", stdout);
@@ -220,7 +220,7 @@ static void enum_unversioned(struct dir_entry **files, int nr, BOOL bIgnored)
 				if (l_bDirStatus)
 				{
 					l_nLastStatus = l_nEmptyDirStatus;
-					update_dirs_unversioned(ent, 0);
+					update_dirs_unversioned(ent, len);
 				}
 
 				continue;
