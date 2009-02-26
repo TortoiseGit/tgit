@@ -31,14 +31,16 @@ enum WGENUMFILEFLAGS
 enum WGFILESTATUS
 {
 	WGFS_Normal,
-	WGFS_Modified,
-	//WGFS_Staged,
-	//WGFS_Added,
-	WGFS_Conflicted,
+	WGFS_Staged,
+	WGFS_Added,
 	WGFS_Deleted,
+	WGFS_Modified,
+	WGFS_Conflicted,
 
-	WGFS_Unknown = -1,
-	WGFS_Empty = -2
+	WGFS_Ignored = -1,
+	WGFS_Unversioned = -2,
+	WGFS_Empty = -3,
+	WGFS_Unknown = -4
 };
 
 

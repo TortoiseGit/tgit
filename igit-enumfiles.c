@@ -398,8 +398,7 @@ static void update_dirs_unversioned_rec(LPCSTR lpszFileName, UINT nDirLen, struc
 	struct DirStatus *dir = GetSubDir(parentDir, s, nDirLen1);
 	//ASSERT(dir != NULL);
 
-	// TODO: if 'conflicted' status is added then need to check for that as highest prio
-	if (dir->nStatus >= WGFS_Modified && l_bNoRecurse)
+	if (dir->nStatus >= WGFS_Conflicted && l_bNoRecurse)
 	{
 		// no further processing needed
 		return;
@@ -415,7 +414,7 @@ static void update_dirs_unversioned_rec(LPCSTR lpszFileName, UINT nDirLen, struc
 		// no more dirs in pathname (ie we are in the dir the file is located)
 
 		if (l_nEmptyDirStatus == WGFS_Unknown)
-			// only want dirst enumerated without recursive status
+			// only want dirs enumerated without recursive status
 			return;
 
 		const int nFileStatus = l_nLastStatus;
@@ -447,6 +446,10 @@ static void update_dirs_unversioned(struct dir_entry *ce, int nPathNameOffset)
 	{
 		// file is not in sub-dir
 
+		if (l_nEmptyDirStatus == WGFS_Unknown)
+			// only want dirst enumerated without recursive status
+			return;
+
 		const int nFileStatus = l_nLastStatus;
 
 		if (nFileStatus > l_dirTree.nStatus)
@@ -472,8 +475,7 @@ static void update_dirs_rec(LPCSTR lpszFileName, UINT nDirLen, struct cache_entr
 	struct DirStatus *dir = GetSubDir(parentDir, s, nDirLen1);
 	//ASSERT(dir != NULL);
 
-	// TODO: if 'conflicted' status is added then need to check for that as highest prio
-	if (dir->nStatus >= WGFS_Modified && l_bNoRecurse)
+	if (dir->nStatus >= WGFS_Conflicted && l_bNoRecurse)
 	{
 		// no further processing needed
 		return;
@@ -528,6 +530,10 @@ static void update_dirs(struct cache_entry *ce, int nPathNameOffset, BOOL bStatu
 	if (p <= lpszFileName)
 	{
 		// file is not in sub-dir
+
+		 if (l_nEmptyDirStatus == WGFS_Unknown)
+			 // only want dirs enumerated without recursive status
+			return;
 
 		if (!bStatusCached)
 		{
