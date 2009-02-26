@@ -4,9 +4,24 @@
 #include <windows.h>
 #include "igit.h"
 
+#include "cache.h"
+#include "commit.h"
+#include "diff.h"
+#include "diffcore.h"
+#include "revision.h"
+#include "cache-tree.h"
+#include "unpack-trees.h"
+#include "reflog-walk.h"
+
 
 // uses the ls-files code
 #include "builtin-ls-files.c"
+
+
+// custom cache entry flags (just to make sure that no git functions get confused)
+#define CE_IG_ADDED		0x2000000
+#define CE_IG_DELETED	0x4000000
+#define CE_IG_STAGED	0x8000000
 
 
 struct DirStatus
@@ -27,6 +42,15 @@ struct DirStatus
 static struct DirStatus l_dirTree;
 
 
+struct EntryRef
+{
+	struct cache_entry *ce;
+	struct EntryRef *next;
+};
+
+static struct EntryRef *l_delQueue = NULL;
+
+
 static BOOL l_bNoRecurse;
 static int l_nMinStatusRelevantForDirs;
 static BOOL l_bSkipNormalDirs;
@@ -40,6 +64,8 @@ static LPSTR l_lpszFileName;
 static BOOL l_bDirStatus;
 static int l_nLastStatus;
 static int l_nEnumeratedCached = 0;
+
+static BOOL l_bHasHistory = FALSE;
 
 
 static inline char GetStatusChar(int nStatus)
@@ -63,6 +89,16 @@ static inline char GetStatusChar(int nStatus)
 }
 
 
+static inline void queue_deleted(struct cache_entry *ce)
+{
+	struct EntryRef *p = (struct EntryRef*) malloc( sizeof(struct EntryRef) );
+
+	p->ce = ce;
+
+	p->next = l_delQueue;
+	l_delQueue = p;
+}
+
 
 static BOOL enum_ce_entry(struct cache_entry *ce, struct stat *st)
 {
@@ -83,12 +119,18 @@ static BOOL enum_ce_entry(struct cache_entry *ce, struct stat *st)
 	const int nStage = ce_stage(ce);
 
 	int nStatus = WGFS_Unknown;
-	if (!st)
+	if (!st || (ce->ce_flags & CE_IG_DELETED))
 		nStatus = WGFS_Deleted;
+	else if (ce->ce_flags & CE_IG_ADDED)
+		nStatus = WGFS_Added;
 	else if (nStage)
 		nStatus = WGFS_Conflicted;
 	else if ( ce_modified(ce, st, 0) )
 		nStatus = WGFS_Modified;
+	else if (ce->ce_flags & CE_IG_STAGED)
+		nStatus = WGFS_Staged;
+	else if (!l_bHasHistory)
+		nStatus = WGFS_Added;
 	else
 		nStatus = WGFS_Normal;
 	l_nLastStatus = nStatus;
@@ -127,12 +169,18 @@ static BOOL process_ce_entry_status(struct cache_entry *ce, struct stat *st)
 	const int nStage = ce_stage(ce);
 
 	UINT nStatus = WGFS_Unknown;
-	if (!st)
+	if (!st || (ce->ce_flags & CE_IG_DELETED))
 		nStatus = WGFS_Deleted;
+	else if (ce->ce_flags & CE_IG_ADDED)
+		nStatus = WGFS_Added;
 	else if (nStage)
 		nStatus = WGFS_Conflicted;
 	else if ( ce_modified(ce, st, 0) )
 		nStatus = WGFS_Modified;
+	else if (ce->ce_flags & CE_IG_STAGED)
+		nStatus = WGFS_Staged;
+	else if (!l_bHasHistory)
+		nStatus = WGFS_Added;
 	else
 		nStatus = WGFS_Normal;
 	l_nLastStatus = nStatus;
@@ -549,6 +597,254 @@ static inline BOOL is_ce_name_eq(struct cache_entry *ce1, struct cache_entry *ce
 }
 
 
+struct oneway_unpack_data {
+	struct rev_info *revs;
+	char symcache[PATH_MAX];
+};
+
+// modified version of function in diff-lib.c
+static void do_oneway_diff(struct unpack_trees_options *o, struct cache_entry *idx, struct cache_entry *tree)
+{
+	if (!tree)
+	{
+		if (idx)
+		{
+			// file has no previous commit, newly added
+			idx->ce_flags |= CE_IG_ADDED;
+		}
+	}
+	else if (!idx)
+	{
+		// file only in previous commit, deleted
+		tree->ce_flags |= CE_IG_DELETED;
+		queue_deleted(tree);
+	}
+	else if (!(idx->ce_flags & CE_INTENT_TO_ADD)
+		&& hashcmp(tree->sha1, idx->sha1) && !is_null_sha1(idx->sha1))
+	{
+		// file modified and in both indices, staged
+		idx->ce_flags |= CE_IG_STAGED;
+	}
+}
+
+// function taken from diff-lib.c
+static inline void skip_same_name(struct cache_entry *ce, struct unpack_trees_options *o)
+{
+	int len = ce_namelen(ce);
+	const struct index_state *index = o->src_index;
+
+	while (o->pos < index->cache_nr) {
+		struct cache_entry *next = index->cache[o->pos];
+		if (len != ce_namelen(next))
+			break;
+		if (memcmp(ce->name, next->name, len))
+			break;
+		o->pos++;
+	}
+}
+
+// function taken from diff-lib.c
+static int oneway_diff(struct cache_entry **src, struct unpack_trees_options *o)
+{
+	struct cache_entry *idx = src[0];
+	struct cache_entry *tree = src[1];
+	struct oneway_unpack_data *cbdata = o->unpack_data;
+	struct rev_info *revs = cbdata->revs;
+
+	if (idx && ce_stage(idx))
+		skip_same_name(idx, o);
+
+	/*
+	 * Unpack-trees generates a DF/conflict entry if
+	 * there was a directory in the index and a tree
+	 * in the tree. From a diff standpoint, that's a
+	 * delete of the tree and a create of the file.
+	 */
+	if (tree == o->df_conflict_entry)
+		tree = NULL;
+
+	if (ce_path_match(idx ? idx : tree, revs->prune_data))
+		do_oneway_diff(o, idx, tree);
+
+	return 0;
+}
+
+/*
+ * This turns all merge entries into "stage 3". That guarantees that
+ * when we read in the new tree (into "stage 1"), we won't lose sight
+ * of the fact that we had unmerged entries.
+ */
+static void mark_merge_entries(void)
+{
+	int i;
+	for (i = 0; i < active_nr; i++) {
+		struct cache_entry *ce = active_cache[i];
+		if (!ce_stage(ce))
+			continue;
+		ce->ce_flags |= CE_STAGEMASK;
+	}
+}
+
+static void preprocess_index(struct rev_info *revs)
+{
+	// compare current index with index from last commit to detect staged and newly added files
+
+	//
+	// based on run_diff_index()
+	//
+
+	struct object *ent;
+	struct tree *tree;
+	const char *tree_name;
+	struct unpack_trees_options opts;
+	struct tree_desc t;
+	struct oneway_unpack_data unpack_cb;
+
+	mark_merge_entries();
+
+	ent = revs->pending.objects[0].item;
+	tree_name = revs->pending.objects[0].name;
+	tree = parse_tree_indirect(ent->sha1);
+	if (!tree)
+		// bad tree object
+		return;
+
+	unpack_cb.revs = revs;
+	unpack_cb.symcache[0] = '\0';
+	memset(&opts, 0, sizeof(opts));
+	opts.head_idx = 1;
+	opts.index_only = 1;
+	opts.merge = 1;
+	opts.fn = oneway_diff;
+	opts.unpack_data = &unpack_cb;
+	opts.src_index = &the_index;
+	opts.dst_index = NULL;
+
+	init_tree_desc(&t, tree->buffer, tree->size);
+
+	if ( unpack_trees(1, &t, &opts) )
+		// failed to unpack
+		return;
+
+	// add deleted files to index (easier for enumeration functions to process)
+	if (l_delQueue)
+	{
+		struct EntryRef *p = l_delQueue;
+
+		while (p)
+		{
+			// only add file for enumeration if they still exist
+			struct stat st;
+			if ( lstat(p->ce->name, &st) )
+			{
+				struct cache_entry *ce = make_cache_entry(p->ce->ce_mode, null_sha1, p->ce->name, 0, 0);
+
+				add_index_entry(&the_index, ce, ADD_CACHE_OK_TO_ADD|ADD_CACHE_SKIP_DFCHECK|ADD_CACHE_NEW_ONLY);
+				ce->ce_flags &= ~CE_ADDED;
+				ce->ce_flags |= CE_IG_DELETED;
+			}
+
+			struct EntryRef *q = p;
+			p = p->next;
+
+			free(q);
+		}
+
+		l_delQueue = NULL;
+	}
+}
+
+
+static struct object *get_reference(struct rev_info *revs, const char *name, const unsigned char *sha1, unsigned int flags)
+{
+	struct object *object;
+
+	object = parse_object(sha1);
+	if (!object)
+		return NULL;//die("bad object %s", name);
+	object->flags |= flags;
+	return object;
+}
+
+static int add_pending_object_with_mode(struct rev_info *revs, struct object *obj, const char *name, unsigned mode)
+{
+	if (revs->no_walk && (obj->flags & UNINTERESTING))
+		return 1;//die("object ranges do not make sense when not walking revisions");
+	if (revs->reflog_info && obj->type == OBJ_COMMIT
+		&& add_reflog_for_walk(revs->reflog_info, (struct commit *)obj, name))
+		return 0;
+	add_object_array_with_mode(obj, name, &revs->pending, mode);
+	return 0;
+}
+
+static int setup_revisions_lite(struct rev_info *revs, const char *def)
+{
+	if (revs->def == NULL)
+		revs->def = def;
+	if (revs->def && !revs->pending.nr) {
+		unsigned char sha1[20];
+		struct object *object;
+		unsigned mode;
+		if (get_sha1_with_mode(revs->def, sha1, &mode))
+			return 1;//die("bad default revision '%s'", revs->def);
+		object = get_reference(revs, revs->def, sha1, 0);
+		if (!object)
+			return 2;
+		if ( add_pending_object_with_mode(revs, object, revs->def, mode) )
+			return 3;
+	}
+
+	/* Did the user ask for any diff output? Run the diff! */
+	if (revs->diffopt.output_format & ~DIFF_FORMAT_NO_OUTPUT)
+		revs->diff = 1;
+
+	/* Pickaxe, diff-filter and rename following need diffs */
+	if (revs->diffopt.pickaxe ||
+	    revs->diffopt.filter ||
+	    DIFF_OPT_TST(&revs->diffopt, FOLLOW_RENAMES))
+		revs->diff = 1;
+
+	if (revs->topo_order)
+		revs->limited = 1;
+
+	if (revs->prune_data) {
+		diff_tree_setup_paths(revs->prune_data, &revs->pruning);
+		/* Can't prune commits with rename following: the paths change.. */
+		if (!DIFF_OPT_TST(&revs->diffopt, FOLLOW_RENAMES))
+			revs->prune = 1;
+		if (!revs->full_diff)
+			diff_tree_setup_paths(revs->prune_data, &revs->diffopt);
+	}
+	if (revs->combine_merges) {
+		revs->ignore_merges = 0;
+		if (revs->dense_combined_merges && !revs->diffopt.output_format)
+			revs->diffopt.output_format = DIFF_FORMAT_PATCH;
+	}
+	revs->diffopt.abbrev = revs->abbrev;
+	if (diff_setup_done(&revs->diffopt) < 0)
+		return 4;//die("diff_setup_done failed");
+
+	compile_grep_patterns(&revs->grep_filter);
+
+	/*if (revs->reverse && revs->reflog_info)
+		die("cannot combine --reverse with --walk-reflogs");
+	if (revs->rewrite_parents && revs->children.name)
+		die("cannot combine --parents and --children");*/
+
+	/*
+	 * Limitations on the graph functionality
+	 */
+	/*if (revs->reverse && revs->graph)
+		die("cannot combine --reverse with --graph");
+
+	if (revs->reflog_info && revs->graph)
+		die("cannot combine --walk-reflogs with --graph");*/
+
+	return 0;
+}
+
+
+
 BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const char *prefix, unsigned int nFlags)
 {
 	// reset all local vars of builtin-ls-files.c to default
@@ -716,7 +1012,16 @@ BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const cha
 	show_deleted = 1;
 	show_unmerged = 1;
 
+	struct rev_info rev;
+	init_revisions(&rev, prefix);
+	rev.ignore_merges = 0;
+	rev.no_walk = 1;
+	rev.max_count = 1;
+	l_bHasHistory = !setup_revisions_lite(&rev, "HEAD");
+
 	read_cache();
+	if (l_bHasHistory)
+		preprocess_index(&rev);
 	if (prefix)
 		prune_cache(prefix);
 
@@ -756,7 +1061,7 @@ BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const cha
 			continue;
 		}
 
-		err = lstat(ce->name, &st);
+		err = (ce->ce_flags & CE_IG_DELETED) ? 1 : lstat(ce->name, &st);
 
 		if ( enum_ce_entry(ce, err ? NULL : &st) )
 			return TRUE;
