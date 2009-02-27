@@ -121,10 +121,10 @@ static BOOL enum_ce_entry(struct cache_entry *ce, struct stat *st)
 	int nStatus = WGFS_Unknown;
 	if (!st || (ce->ce_flags & CE_IG_DELETED))
 		nStatus = WGFS_Deleted;
-	else if (ce->ce_flags & CE_IG_ADDED)
-		nStatus = WGFS_Added;
 	else if (nStage)
 		nStatus = WGFS_Conflicted;
+	else if (ce->ce_flags & CE_IG_ADDED)
+		nStatus = WGFS_Added;
 	else if ( ce_modified(ce, st, 0) )
 		nStatus = WGFS_Modified;
 	else if (ce->ce_flags & CE_IG_STAGED)
@@ -171,10 +171,10 @@ static BOOL process_ce_entry_status(struct cache_entry *ce, struct stat *st)
 	UINT nStatus = WGFS_Unknown;
 	if (!st || (ce->ce_flags & CE_IG_DELETED))
 		nStatus = WGFS_Deleted;
-	else if (ce->ce_flags & CE_IG_ADDED)
-		nStatus = WGFS_Added;
 	else if (nStage)
 		nStatus = WGFS_Conflicted;
+	else if (ce->ce_flags & CE_IG_ADDED)
+		nStatus = WGFS_Added;
 	else if ( ce_modified(ce, st, 0) )
 		nStatus = WGFS_Modified;
 	else if (ce->ce_flags & CE_IG_STAGED)
