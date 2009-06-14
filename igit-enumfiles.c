@@ -51,6 +51,9 @@ struct EntryRef
 static struct EntryRef *l_delQueue = NULL;
 
 
+// enable caching of last commit's index (to reduce disk i/o caused by unpacking trees and whatnot)
+static BOOL l_bEnableIndexCache = TRUE;
+
 static BOOL l_bNoRecurse;
 static int l_nMinStatusRelevantForDirs;
 static BOOL l_bSkipNormalDirs;
@@ -675,6 +678,11 @@ static int oneway_diff(struct cache_entry **src, struct unpack_trees_options *o)
 	return 0;
 }
 
+static int dummy_diff(struct cache_entry **src, struct unpack_trees_options *o)
+{
+	return 0;
+}
+
 /*
  * This turns all merge entries into "stage 3". That guarantees that
  * when we read in the new tree (into "stage 1"), we won't lose sight
@@ -695,18 +703,59 @@ static void preprocess_index(struct rev_info *revs)
 {
 	// compare current index with index from last commit to detect staged and newly added files
 
+	struct unpack_trees_options opts;
+	struct index_state old_index = { 0 };
+	int fd;
+	char filename[MAX_PATH];
+	unsigned char cursha1[20+12];
+
+	if (l_bEnableIndexCache)
+	{
+		//
+		// load cached index if valid
+		//
+
+		if ( get_sha1("HEAD", cursha1) )
+			die("Could not resolve SHA1 of HEAD");
+
+		sprintf(filename, "%s_cached.igit", get_index_file());
+
+		fd = open(filename, O_RDONLY);
+
+		if (fd >= 0)
+		{
+			// check if cached file contains desired revision
+
+			// NOTE: the cache file header is 32 bytes, where the first 20 bytes is the SHA1 of the cached revision
+			//       the remaining 12 bytes are for future use
+
+			unsigned char sha1[20+12];
+			BOOL res = (read(fd, sha1, 32) == 32);
+			close(fd);
+
+			if (res && !hashcmp(cursha1, sha1))
+			{
+				// cached index is valid, read it
+				read_index_from_ex(&old_index, filename, 32);
+				goto merge_index;
+			}
+		}
+	}
+
 	//
 	// based on run_diff_index()
 	//
 
+	// build old_index (and save to cached file)
+
 	struct object *ent;
 	struct tree *tree;
 	const char *tree_name;
-	struct unpack_trees_options opts;
 	struct tree_desc t;
 	struct oneway_unpack_data unpack_cb;
 
-	mark_merge_entries();
+	if (!l_bEnableIndexCache)
+		mark_merge_entries();
 
 	ent = revs->pending.objects[0].item;
 	tree_name = revs->pending.objects[0].name;
@@ -720,17 +769,130 @@ static void preprocess_index(struct rev_info *revs)
 	memset(&opts, 0, sizeof(opts));
 	opts.head_idx = 1;
 	opts.index_only = 1;
-	opts.merge = 1;
-	opts.fn = oneway_diff;
+	if (!l_bEnableIndexCache)
+	{
+		opts.merge = 1;
+		opts.fn = oneway_diff;
+		opts.src_index = &the_index;
+		opts.dst_index = NULL;
+	}
+	else
+	{
+		opts.merge = 0;
+		opts.fn = dummy_diff;
+		opts.src_index = NULL;
+		opts.dst_index = &old_index;
+	}
 	opts.unpack_data = &unpack_cb;
-	opts.src_index = &the_index;
-	opts.dst_index = NULL;
 
 	init_tree_desc(&t, tree->buffer, tree->size);
 
 	if ( unpack_trees(1, &t, &opts) )
 		// failed to unpack
 		return;
+
+	if (l_bEnableIndexCache)
+	{
+		fd = open(filename, O_WRONLY | O_CREAT, 0666);
+
+		memset(cursha1+20, 0, 12);
+		write(fd, cursha1, 32);
+
+		if (fd < 0 || write_index(&old_index, fd) || close(fd))
+			die("Could not write cached index to %s", filename);
+
+		//
+		// merge/diff old index with current index
+		//
+
+merge_index:
+
+		mark_merge_entries();
+
+		memset(&opts, 0, sizeof(opts));
+		opts.head_idx = 1;
+		opts.index_only = 1;
+		opts.merge = 1;
+		opts.fn = dummy_diff;
+		opts.unpack_data = &unpack_cb;
+		opts.src_index = NULL;
+		opts.dst_index = &old_index;
+
+		int i = 0;
+		int j = 0;
+		for (; i<active_nr && j<old_index.cache_nr;)
+		{
+			struct cache_entry *ce = active_cache[i];
+			struct cache_entry *oldce = old_index.cache[j];
+
+			int len = ce_namelen(ce);
+			int oldlen = ce_namelen(oldce);
+
+			int cmp = df_name_compare(
+				ce->name, len, ce->ce_mode,
+				oldce->name, oldlen, oldce->ce_mode);
+
+			if (cmp > 0)
+			{
+				// new entry is bigger than the old one (old file has been deleted)
+				do_oneway_diff(&opts, NULL, oldce);
+
+				j++;
+			}
+			else if (cmp < 0)
+			{
+				// new entry is smaller than the old one (newly added file)
+				do_oneway_diff(&opts, ce, NULL);
+
+				i++;
+			}
+			else
+			{
+				do_oneway_diff(&opts, ce, oldce);
+
+				// skip consecutive unmerged entries
+				if ( ce_stage(ce) )
+				{
+					int k;
+					for (k=i+1; k<active_nr; k++)
+					{
+						if ( !is_ce_name_eq(ce, active_cache[k]) )
+							break;
+						i = k;
+					}
+				}
+
+				i++;
+				j++;
+			}
+		}
+
+		// process remaining entries (should there be any)
+		for (; i<active_nr; i++)
+		{
+			struct cache_entry *ce = active_cache[i];
+
+			// newly added file
+			do_oneway_diff(&opts, ce, NULL);
+
+			// skip consecutive unmerged entries
+			if ( ce_stage(ce) )
+			{
+				int k;
+				for (k=i+1; k<active_nr; k++)
+				{
+					if ( !is_ce_name_eq(ce, active_cache[k]) )
+						break;
+					i = k;
+				}
+			}
+		}
+		for (; j<old_index.cache_nr; j++)
+		{
+			// old file has been deleted
+			do_oneway_diff(&opts, NULL, old_index.cache[j]);
+		}
+	}
 
 	// add deleted files to index (easier for enumeration functions to process)
 	if (l_delQueue)
@@ -758,6 +920,9 @@ static void preprocess_index(struct rev_info *revs)
 
 		l_delQueue = NULL;
 	}
+
+	if (l_bEnableIndexCache)
+		discard_index(&old_index);
 }
 
 
@@ -876,6 +1041,9 @@ BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const cha
 	tag_other = "";
 	tag_killed = "";
 	tag_modified = "";
+
+	if (nFlags & WGEFF_NoCacheIndex)
+		l_bEnableIndexCache = FALSE;
 
 	const BOOL bSubDir = pszSubPath && is_dir(pszProjectPath, pszSubPath);
 
