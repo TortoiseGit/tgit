@@ -39,7 +39,10 @@ struct dir_struct {
 		DIR_SHOW_OTHER_DIRECTORIES = 1<<1,
 		DIR_HIDE_EMPTY_DIRECTORIES = 1<<2,
 		DIR_NO_GITLINKS = 1<<3,
-		DIR_COLLECT_IGNORED = 1<<4
+		DIR_COLLECT_IGNORED = 1<<4,
+		DIR_COLLECT_ALL_IGNORED = 1<<5,
+		DIR_COLLECT_DIRECTORIES = 1<<6,
+		DIR_NO_RECURSE_READDIR = 1<<7,
 	} flags;
 	struct dir_entry **entries;
 	struct dir_entry **ignored;

@@ -1541,6 +1541,22 @@
 				>
 			</File>
 		</Filter>
+		<Filter
+			Name="igit"
+			>
+			<File
+				RelativePath="..\..\..\igit-enumfiles.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\igit.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\igit.h"
+				>
+			</File>
+		</Filter>
 	</Files>
 	<Globals>
 		<Global

@@ -1,6 +1,6 @@
 // igit-enumfiles.c
 //
-
+#include "git-compat-util.h"
 #include <windows.h>
 #include "igit.h"
 
@@ -106,7 +106,8 @@ static inline void queue_deleted(struct cache_entry *ce)
 static BOOL enum_ce_entry(struct cache_entry *ce, struct stat *st)
 {
 	// is this of any use (ce->ce_flags & CE_VALID) ?
-
+	int nStage;
+	int nStatus;
 	LPCSTR sFileName;
 
 	if (!l_bFullPath)
@@ -119,9 +120,9 @@ static BOOL enum_ce_entry(struct cache_entry *ce, struct stat *st)
 		sFileName = l_sFullPathBuf;
 	}
 
-	const int nStage = ce_stage(ce);
+	nStage = ce_stage(ce);
 
-	int nStatus = WGFS_Unknown;
+	nStatus = WGFS_Unknown;
 	if (!st || (ce->ce_flags & CE_IG_DELETED))
 		nStatus = WGFS_Deleted;
 	else if (nStage)
@@ -201,6 +202,9 @@ static void update_dirs_unversioned(struct dir_entry *ce, int nPathNameOffset);
 static void enum_unversioned(struct dir_entry **files, int nr, BOOL bIgnored)
 {
 	int i;
+	int len;
+	LPCSTR sFileName;
+
 	for (i=0; i<nr; i++)
 	{
 		struct dir_entry *ent = files[i];
@@ -208,15 +212,13 @@ static void enum_unversioned(struct dir_entry **files, int nr, BOOL bIgnored)
 		if (ent->name[ent->len-1] != '/' && !cache_name_is_other(ent->name, ent->len))
 			continue;
 
-		int len = prefix_len;
+		len = prefix_len;
 
 		if (len >= ent->len)
 			die("igit status: internal error - directory entry not superset of prefix");
 
 		if (pathspec && !match_pathspec(pathspec, ent->name, ent->len, len, ps_matched))
 			continue;
-
-		LPCSTR sFileName;
 
 		if (!l_bFullPath)
 		{
@@ -333,6 +335,8 @@ static BOOL enum_dirs(struct DirStatus *dir, LPSTR sPathNameBuf)
 
 static struct DirStatus* GetSubDir(struct DirStatus *dir, LPCSTR lpszName, int nNameLenInclTerminator)
 {
+	struct DirStatus *p,*last;
+
 	// check for cached access
 	if (dir->pLastAccessedChild
 		&& !strcmp(dir->pLastAccessedChild->lpszName, lpszName))
@@ -341,8 +345,8 @@ static struct DirStatus* GetSubDir(struct DirStatus *dir, LPCSTR lpszName, int n
 	}
 
 	// search children
-	struct DirStatus *p = dir->children;
-	struct DirStatus *last = NULL;
+	p = dir->children;
+	last = NULL;
 	while (p)
 	{
 		if ( !strcmp(p->lpszName, lpszName) )
@@ -393,12 +397,22 @@ static inline BOOL IsStatusRelevantForDirs(int nStatus)
 
 static void update_dirs_unversioned_rec(LPCSTR lpszFileName, UINT nDirLen, struct dir_entry *ce, struct DirStatus *parentDir)
 {
-	const int nDirLen1 = nDirLen+1;
-	char s[nDirLen1];
+	int nDirLen1 = nDirLen+1;
+	char s[MAX_PATH+1];
+	struct DirStatus *dir;
+	LPCSTR p;
+	int nFileStatus;
+
+	if( nDirLen1 > MAX_PATH+1)
+		nDirLen1 = MAX_PATH+1;
+
+	if( nDirLen > MAX_PATH)
+		nDirLen = MAX_PATH;
+
 	memcpy(s, lpszFileName, nDirLen);
 	s[nDirLen] = 0;
 
-	struct DirStatus *dir = GetSubDir(parentDir, s, nDirLen1);
+	dir = GetSubDir(parentDir, s, nDirLen1);
 	//ASSERT(dir != NULL);
 
 	if (dir->nStatus >= WGFS_Conflicted && l_bNoRecurse)
@@ -411,7 +425,7 @@ static void update_dirs_unversioned_rec(LPCSTR lpszFileName, UINT nDirLen, struc
 
 	lpszFileName += nDirLen1;
 
-	LPCSTR p = strchr(lpszFileName, '/');
+	p = strchr(lpszFileName, '/');
 	if (!p)
 	{
 		// no more dirs in pathname (ie we are in the dir the file is located)
@@ -420,7 +434,7 @@ static void update_dirs_unversioned_rec(LPCSTR lpszFileName, UINT nDirLen, struc
 			// only want dirs enumerated without recursive status
 			return;
 
-		const int nFileStatus = l_nLastStatus;
+		nFileStatus = l_nLastStatus;
 
 		if (nFileStatus > dir->nStatus)
 		{
@@ -442,6 +456,7 @@ static void update_dirs_unversioned_rec(LPCSTR lpszFileName, UINT nDirLen, struc
 static void update_dirs_unversioned(struct dir_entry *ce, int nPathNameOffset)
 {
 	// filename relative to enumerated path
+	int nFileStatus;
 	LPCSTR lpszFileName = ce->name + nPathNameOffset;
 
 	LPCSTR p = strchr(lpszFileName, '/');
@@ -453,7 +468,7 @@ static void update_dirs_unversioned(struct dir_entry *ce, int nPathNameOffset)
 			// only want dirst enumerated without recursive status
 			return;
 
-		const int nFileStatus = l_nLastStatus;
+		nFileStatus = l_nLastStatus;
 
 		if (nFileStatus > l_dirTree.nStatus)
 			l_dirTree.nStatus = nFileStatus;
@@ -470,12 +485,22 @@ static void update_dirs_unversioned(struct dir_entry *ce, int nPathNameOffset)
 
 static void update_dirs_rec(LPCSTR lpszFileName, UINT nDirLen, struct cache_entry *ce, BOOL bStatusCached, struct DirStatus *parentDir)
 {
-	const int nDirLen1 = nDirLen+1;
-	char s[nDirLen1];
+	int nDirLen1 = nDirLen+1;
+	char s[MAX_PATH+1];
+	struct DirStatus *dir;
+	LPCSTR p;
+	int nFileStatus;
+	
+	if( nDirLen1 > MAX_PATH+1)
+		nDirLen1 = MAX_PATH+1;
+
+	if( nDirLen > MAX_PATH)
+		nDirLen = MAX_PATH;
+
 	memcpy(s, lpszFileName, nDirLen);
 	s[nDirLen] = 0;
 
-	struct DirStatus *dir = GetSubDir(parentDir, s, nDirLen1);
+	dir = GetSubDir(parentDir, s, nDirLen1);
 	//ASSERT(dir != NULL);
 
 	if (dir->nStatus >= WGFS_Conflicted && l_bNoRecurse)
@@ -488,7 +513,7 @@ static void update_dirs_rec(LPCSTR lpszFileName, UINT nDirLen, struct cache_entr
 
 	lpszFileName += nDirLen1;
 
-	LPCSTR p = strchr(lpszFileName, '/');
+	p = strchr(lpszFileName, '/');
 	if (!p)
 	{
 		// no more dirs in pathname (ie we are in the dir the file is located)
@@ -505,7 +530,7 @@ static void update_dirs_rec(LPCSTR lpszFileName, UINT nDirLen, struct cache_entr
 			if (!process_ce_entry_status(ce, err ? NULL : &st) || !IsStatusRelevantForDirs(l_nLastStatus))
 				return;
 		}
-		const int nFileStatus = l_nLastStatus;
+		nFileStatus = l_nLastStatus;
 
 		if (nFileStatus > dir->nStatus)
 		{
@@ -528,6 +553,7 @@ static void update_dirs(struct cache_entry *ce, int nPathNameOffset, BOOL bStatu
 {
 	// filename relative to enumerated path
 	LPCSTR lpszFileName = ce->name + nPathNameOffset;
+	int nFileStatus;
 
 	LPCSTR p = strchr(lpszFileName, '/');
 	if (p <= lpszFileName)
@@ -546,7 +572,7 @@ static void update_dirs(struct cache_entry *ce, int nPathNameOffset, BOOL bStatu
 			if (!process_ce_entry_status(ce, err ? NULL : &st) || !IsStatusRelevantForDirs(l_nLastStatus))
 				return;
 		}
-		const int nFileStatus = l_nLastStatus;
+		nFileStatus = l_nLastStatus;
 
 		if (nFileStatus > l_dirTree.nStatus)
 			l_dirTree.nStatus = nFileStatus;
@@ -569,10 +595,13 @@ static inline BOOL is_subpath(const char *sPath, int nPathLen, const char *sFile
 static BOOL is_dir(const char *sProjectPath, const char *sSubPath)
 {
 	char s[2048];
+	LPSTR q;
+	int err;
+	struct stat st;
 
 	strcpy(s, sProjectPath);
 	// backslashify
-	LPSTR q = s;
+	q = s;
 	while (*q)
 	{
 		if (*q == '/')
@@ -591,8 +620,7 @@ static BOOL is_dir(const char *sProjectPath, const char *sSubPath)
 		q++;
 	}
 
-	struct stat st;
-	int err = lstat(s, &st);
+	err = lstat(s, &st);
 
 	return (!err && S_ISDIR(st.st_mode));
 }
@@ -708,6 +736,14 @@ static void preprocess_index(struct rev_info *revs)
 	int fd;
 	char filename[MAX_PATH];
 	unsigned char cursha1[20+12];
+	struct object *ent;
+	struct tree *tree;
+	const char *tree_name;
+	struct tree_desc t;
+	struct oneway_unpack_data unpack_cb;
+	int i = 0;
+	int j = 0;
+	struct EntryRef *q;
 
 	if (l_bEnableIndexCache)
 	{
@@ -748,11 +784,6 @@ static void preprocess_index(struct rev_info *revs)
 
 	// build old_index (and save to cached file)
 
-	struct object *ent;
-	struct tree *tree;
-	const char *tree_name;
-	struct tree_desc t;
-	struct oneway_unpack_data unpack_cb;
 
 	if (!l_bEnableIndexCache)
 		mark_merge_entries();
@@ -818,8 +849,6 @@ merge_index:
 		opts.src_index = NULL;
 		opts.dst_index = &old_index;
 
-		int i = 0;
-		int j = 0;
 		for (; i<active_nr && j<old_index.cache_nr;)
 		{
 			struct cache_entry *ce = active_cache[i];
@@ -912,7 +941,7 @@ merge_index:
 				ce->ce_flags |= CE_IG_DELETED;
 			}
 
-			struct EntryRef *q = p;
+			q = p;
 			p = p->next;
 
 			free(q);
@@ -1019,6 +1048,20 @@ static int setup_revisions_lite(struct rev_info *revs, const char *def)
 BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const char *prefix, unsigned int nFlags)
 {
 	// reset all local vars of builtin-ls-files.c to default
+	BOOL bSubDir;
+	LPCSTR pszSubPathSpec;
+	int i;
+	struct dir_struct *dir;
+	char *argv[2];
+	int pathspec_len;
+	//int exc_given = 0, require_work_tree = 0;
+	struct dir_struct _dir;
+	const char *refpath;
+	BOOL single_dir;
+	BOOL no_recurse;
+	struct rev_info rev;
+	BOOL bIgnoreInitialized;
+
 	abbrev = 0;
 	show_deleted = 0;
 	show_cached = 0;
@@ -1045,9 +1088,9 @@ BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const cha
 	if (nFlags & WGEFF_NoCacheIndex)
 		l_bEnableIndexCache = FALSE;
 
-	const BOOL bSubDir = pszSubPath && is_dir(pszProjectPath, pszSubPath);
+	bSubDir = pszSubPath && is_dir(pszProjectPath, pszSubPath);
 
-	LPCSTR pszSubPathSpec = pszSubPath;
+	pszSubPathSpec = pszSubPath;
 	if (bSubDir && !(nFlags & WGEFF_SingleFile))
 	{
 		int len = strlen(pszSubPath);
@@ -1056,10 +1099,6 @@ BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const cha
 		strcpy(s+len, "/*");
 		pszSubPathSpec = s;
 	}
-
-	int i;
-	//int exc_given = 0, require_work_tree = 0;
-	struct dir_struct _dir;
 
 	memset(&_dir, 0, sizeof(_dir));
 
@@ -1073,9 +1112,8 @@ BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const cha
 		prefix_offset = strlen(prefix);
 	git_config(git_default_config, NULL);
 
-	struct dir_struct *dir = &_dir;
+	dir = &_dir;
 
-	const char *argv[2];
 	argv[0] = pszSubPathSpec;
 	argv[1] = NULL;
 
@@ -1101,7 +1139,7 @@ BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const cha
 	}
 
 	// vars used for path recursion check
-	int pathspec_len = 0;
+	pathspec_len = 0;
 	if (pathspec && *pathspec)
 	{
 		// calc length of pathspec plus 1 for a / (unless it already ends with a slash)
@@ -1111,7 +1149,7 @@ BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const cha
 		if ((*pathspec)[pathspec_len-1] != '/')
 			pathspec_len++;
 	}
-	const char *refpath = (pathspec && *pathspec) ? *pathspec : "";
+	refpath = (pathspec && *pathspec) ? *pathspec : "";
 
 	//
 	// configure
@@ -1119,7 +1157,7 @@ BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const cha
 
 	l_bNoRecurseDir = FALSE;
 
-	BOOL single_dir = (nFlags & WGEFF_SingleFile) && (!pszSubPath || bSubDir);
+	single_dir = (nFlags & WGEFF_SingleFile) && (!pszSubPath || bSubDir);
 	// adjust other flags for best performance / correct results when WGEFF_SingleFile is set
 	if (single_dir && (nFlags & WGEFF_NoRecurse))
 		l_bNoRecurseDir = TRUE;
@@ -1137,7 +1175,7 @@ BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const cha
 			l_dirTree.nStatus = WGFS_Empty;
 	}
 
-	BOOL no_recurse = nFlags & WGEFF_NoRecurse;
+	no_recurse = nFlags & WGEFF_NoRecurse;
 	l_bNoRecurse = no_recurse;
 	l_bFullPath = nFlags & WGEFF_FullPath;
 	l_bDirStatus = nFlags & (WGEFF_DirStatusDelta|WGEFF_DirStatusAll);
@@ -1163,10 +1201,11 @@ BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const cha
 	*l_sFullPathBuf = 0;
 	l_lpszFileName = NULL;
 	if (l_bFullPath)
-	{
+	{	
+		LPSTR q;
 		strcpy(l_sFullPathBuf, pszProjectPath);
 		// slashify
-		LPSTR q = l_sFullPathBuf;
+		q = l_sFullPathBuf;
 		while (*q)
 		{
 			if (*q == '\\')
@@ -1189,7 +1228,6 @@ BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const cha
 	show_deleted = 1;
 	show_unmerged = 1;
 
-	struct rev_info rev;
 	init_revisions(&rev, prefix);
 	rev.ignore_merges = 0;
 	rev.no_walk = 1;
@@ -1264,12 +1302,14 @@ BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const cha
 			update_dirs(ce, pathspec_len, TRUE);
 	}
 
-	BOOL bIgnoreInitialized = FALSE;
+	bIgnoreInitialized = FALSE;
 
 	if (pszSubPath)
 	{
 		// check if root (pszSubPath) dir is ignored
-
+		char sDir[MAX_PATH];
+		LPSTR p;
+		int dtype = DT_DIR;
 		if (!bIgnoreInitialized)
 		{
 			exc_given = 1;
@@ -1277,12 +1317,10 @@ BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const cha
 			bIgnoreInitialized = TRUE;
 		}
 
-		char sDir[MAX_PATH];
 		strcpy(sDir, pszSubPath);
-		LPSTR p = strrchr(sDir, '/');
+		p = strrchr(sDir, '/');
 		if (p) *p = 0;
 
-		int dtype = DT_DIR;
 		// check for matching ignore for each subdir level
 		p = strchr(sDir, '/');
 		for (;;)
@@ -1344,6 +1382,8 @@ BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const cha
 	else if (!single_dir && !l_nEnumeratedCached)
 	{
 		// get status of a single unversioned file
+		LPCSTR sFileName;
+		int dtype = DT_REG;
 
 		if (!bIgnoreInitialized)
 		{
@@ -1351,8 +1391,6 @@ BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const cha
 			setup_standard_excludes(dir);
 			bIgnoreInitialized = TRUE;
 		}
-
-		LPCSTR sFileName;
 
 		if (!l_bFullPath)
 		{
@@ -1364,7 +1402,6 @@ BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const cha
 			sFileName = l_sFullPathBuf;
 		}
 
-		int dtype = DT_REG;
 		// if root dir is ignored, then all unversioned files under it are considered ignore
 		if (!l_dirTree.bExplicitlyIgnored && excluded(dir, pszSubPath, &dtype))
 			fputs("F I 0000000000000000000000000000000000000000 ", stdout);
@@ -1416,11 +1453,13 @@ BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const cha
 		}
 		else if (!enum_dir(&l_dirTree, lpszRootDir) && l_dirTree.children)
 		{
+			struct DirStatus *p;
+
 			if (l_bFullPath)
 				// re-add trailing slash
 				l_lpszFileName[-1] = '/';
 
-			struct DirStatus *p = l_dirTree.children;
+			p = l_dirTree.children;
 
 			do
 			{

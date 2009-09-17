@@ -1,6 +1,6 @@
 // igit.c
 //
-
+#include "git-compat-util.h"
 #include <windows.h>
 #include "igit.h"
 #include "exec_cmd.h"
@@ -36,14 +36,14 @@ static char l_sGitBinPath[2048];
 static const char* GitCommandInit(int flags)
 {
 	// simple init in main of git.c to set up git sys path
-
+	char *prefix;
 	git_extract_argv0_path(l_sGitBinPath);
 
 	setup_path();
 
 	// init from run_command
 
-	const char *prefix = NULL;
+	prefix = NULL;
 
 	if (flags & RUN_SETUP)
 		prefix = setup_git_directory();
@@ -127,16 +127,15 @@ static inline BOOL FileExists(LPCSTR lpszFileName)
 static BOOL FindGitPath()
 {
 	char *env;
+	char buf[_MAX_PATH];
+	const LPCSTR filename = "git.exe";
+	const int filelen = strlen(filename);
+	int len;
 
 	if ( !(env = getenv("PATH")) )
 	{
 		return FALSE;
 	}
-
-	char buf[_MAX_PATH];
-
-	const LPCSTR filename = "git.exe";
-	const int filelen = strlen(filename);
 
 	// search in all paths defined in PATH
 	while ((env = nextpath(env, buf, _MAX_PATH-1)) && *buf)
@@ -147,7 +146,7 @@ static BOOL FindGitPath()
 		if (*pfin != '/' && *pfin != '\\')
 			strcpy(pfin+1, "\\");
 
-		const int len = strlen(buf);
+		len = strlen(buf);
 
 		if ((len + filelen) < _MAX_PATH)
 			strcpy(buf+len, filename);
@@ -169,6 +168,8 @@ static BOOL FindGitPath()
 
 BOOL igInitPath(void)
 {
+	char *p;
+
 	if ( !FindGitPath() )
 	{
 		// fallback and use path of libiconv2.dll which wingit is linked to and normally is located in the git dir
@@ -180,7 +181,7 @@ BOOL igInitPath(void)
 	}
 
 	// slashify path to avoid mixing back and forward slashes (git uses forward)
-	char *p = l_sGitBinPath;
+	p = l_sGitBinPath;
 	while (*p)
 	{
 		if (*p == '\\') *p = '/';
@@ -199,11 +200,13 @@ extern BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, co
 
 int igEnumFiles(const char *pszProjectPath, const char *pszSubPath, unsigned int nFlags)
 {
+	const char *prefix;
+
 	// clean up subpath
 	if (pszSubPath)
 	{
 		int len = strlen(pszSubPath);
-
+		char *c;
 		//char *s = alloca(len+1);
 		//strcpy(s, pszSubPath);
 		char *s = strdup(pszSubPath);
@@ -217,7 +220,7 @@ int igEnumFiles(const char *pszProjectPath, const char *pszSubPath, unsigned int
 		}
 
 		// remove trailing slashes
-		char *c = &s[len-1];
+		c = &s[len-1];
 		while (*c == '/' && c > s) *c-- = 0;
 		// remove initial slashes
 		while (*s == '/') s++;
@@ -225,7 +228,7 @@ int igEnumFiles(const char *pszProjectPath, const char *pszSubPath, unsigned int
 		pszSubPath = *s ? s : NULL;
 	}
 
-	const char *prefix = GitCommandInit(RUN_SETUP);
+	prefix = GitCommandInit(RUN_SETUP);
 
 	if ( !ig_enum_files(pszProjectPath, pszSubPath, prefix, nFlags) )
 	{
@@ -262,8 +265,12 @@ int igGetRevisionID(const char *pszName)
 /////////////////////////////////////////////////////////////////////
 // main
 
-int main(int argc, const char **argv)
+int statusex_buildin(int argc, const char **argv)
 {
+	const char *projpath;
+	const char *cmd;
+	int res;
+
 	if (argc < 3)
 	{
 		if (argc == 2 && !strcasecmp(argv[1], "version"))
@@ -297,7 +304,7 @@ int main(int argc, const char **argv)
 
 	// get project path
 
-	const char *projpath = argv[0];
+	projpath = argv[0];
 
 	if ( chdir(projpath) )
 		return -1;
@@ -307,14 +314,14 @@ int main(int argc, const char **argv)
 
 	// get command
 
-	const char *cmd = argv[0];
+	cmd = argv[0];
 
 	argv++;
 	argc--;
 
 	// process command
 
-	int res = 0;
+	res = 0;
 
 	if ( !strcasecmp(cmd, "revision") )
 	{

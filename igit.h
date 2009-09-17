@@ -14,7 +14,8 @@ enum WGENUMFILEFLAGS
 	WGEFF_DirStatusDelta= (1<<2),	// include directories, in enumeration, that have a recursive status != WGFS_Normal (may have a slightly better performance than WGEFF_DirStatusAll)
 	WGEFF_DirStatusAll	= (1<<3),	// include directories, in enumeration, with recursive status
 	WGEFF_EmptyAsNormal	= (1<<4),	// report sub-directories, with no versioned files, as WGFS_Normal instead of WGFS_Empty
-	WGEFF_SingleFile	= (1<<5)	// indicates that the status of a single file or dir, specified by pszSubPath, is wanted
+	WGEFF_SingleFile	= (1<<5),	// indicates that the status of a single file or dir, specified by pszSubPath, is wanted
+	WGEFF_NoCacheIndex  = (1<<6)
 };
 
 // NOTE: Special behavior for directories when specifying WGEFF_SingleFile:
