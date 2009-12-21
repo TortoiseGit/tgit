@@ -48,7 +48,7 @@
 				Optimization="0"
 				InlineFunctionExpansion="1"
 				AdditionalIncludeDirectories="..\..\..;..\..\..\..\zlib;..\..;..\;..\include;..\..\..\compat;..\..\..\compat\fnmatch;..\..\..\compat\regex;.\;..\..\..\..\libcurl\include"
-				PreprocessorDefinitions="WIN32;_DEBUG;_LIB;HAVE_STRING_H"
+				PreprocessorDefinitions="WIN32;_DEBUG;_LIB;HAVE_STRING_H;USE_WIN32_MMAP"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -114,7 +114,7 @@
 				Optimization="0"
 				InlineFunctionExpansion="1"
 				AdditionalIncludeDirectories="..\..\..;..\..\..\..\zlib;..\..;..\;..\include;..\..\..\compat;..\..\..\compat\fnmatch;..\..\..\compat\regex;.\;..\..\..\..\libcurl\include"
-				PreprocessorDefinitions="WIN32;_DEBUG;_LIB;HAVE_STRING_H"
+				PreprocessorDefinitions="WIN32;_DEBUG;_LIB;HAVE_STRING_H;USE_WIN32_MMAP"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
@@ -179,7 +179,7 @@
 				InlineFunctionExpansion="1"
 				EnableIntrinsicFunctions="true"
 				AdditionalIncludeDirectories="..\..\..;..\..\..\..\zlib;..\..;..\;..\include;..\..\..\compat;..\..\..\compat\fnmatch;..\..\..\compat\regex;.\;..\..\..\..\libcurl\include"
-				PreprocessorDefinitions="WIN32;NDEBUG;_LIB;HAVE_STRING_H"
+				PreprocessorDefinitions="WIN32;NDEBUG;_LIB;HAVE_STRING_H;USE_WIN32_MMAP"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
 				UsePrecompiledHeader="0"
@@ -244,7 +244,7 @@
 				InlineFunctionExpansion="1"
 				EnableIntrinsicFunctions="true"
 				AdditionalIncludeDirectories="..\..\..;..\..\..\..\zlib;..\..;..\;..\include;..\..\..\compat;..\..\..\compat\fnmatch;..\..\..\compat\regex;.\;..\..\..\..\libcurl\include"
-				PreprocessorDefinitions="WIN32;NDEBUG;_LIB;HAVE_STRING_H"
+				PreprocessorDefinitions="WIN32;NDEBUG;_LIB;HAVE_STRING_H;USE_WIN32_MMAP"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
 				UsePrecompiledHeader="0"
@@ -293,7 +293,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\mozilla-sha1\sha1.c"
+				RelativePath="..\..\msvc.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\block-sha1\sha1.c"
 				>
 			</File>
 		</Filter>
@@ -609,10 +613,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\compat\mingw.c"
-				>
-			</File>
-			<File
 				RelativePath="..\..\..\compat\mingw.h"
 				>
 			</File>
@@ -714,6 +714,10 @@
 			>
 			<File
 				RelativePath="..\..\..\abspath.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\advice.c"
 				>
 			</File>
 			<File
@@ -893,10 +897,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\..\builtin-http-fetch.c"
-				>
-			</File>
-			<File
 				RelativePath="..\..\..\builtin-init-db.c"
 				>
 			</File>
@@ -993,6 +993,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\builtin-replace.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\builtin-rerere.c"
 				>
 			</File>
@@ -1058,6 +1062,10 @@
 			</File>
 			<File
 				RelativePath="..\..\..\builtin-update-ref.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\builtin-update-server-info.c"
 				>
 			</File>
 			<File
@@ -1341,6 +1349,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\..\replace_object.c"
+				>
+			</File>
+			<File
 				RelativePath="..\..\..\rerere.c"
 				>
 			</File>
@@ -1406,6 +1418,10 @@
 			</File>
 			<File
 				RelativePath="..\..\..\trace.c"
+				>
+			</File>
+			<File
+				RelativePath="..\..\..\transport-helper.c"
 				>
 			</File>
 			<File
