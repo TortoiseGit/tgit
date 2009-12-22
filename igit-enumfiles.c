@@ -772,7 +772,7 @@ static void preprocess_index(struct rev_info *revs)
 			if (res && !hashcmp(cursha1, sha1))
 			{
 				// cached index is valid, read it
-				read_index_from_ex(&old_index, filename, 32);
+				read_index_from_ex(&old_index, filename,32);
 				goto merge_index;
 			}
 		}
