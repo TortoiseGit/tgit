@@ -754,7 +754,7 @@ static void preprocess_index(struct rev_info *revs)
 		if ( get_sha1("HEAD", cursha1) )
 			die("Could not resolve SHA1 of HEAD");
 
-		sprintf(filename, "%s_cached.igit", get_index_file());
+		sprintf(filename, "%s_cached.tgit", get_index_file());
 
 		fd = open(filename, O_RDONLY);
 
@@ -1373,7 +1373,7 @@ BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const cha
 			dir->flags |= DIR_NO_RECURSE_READDIR;
 		else
 			dir->flags &= ~DIR_NO_RECURSE_READDIR;
-		read_directory(dir, path, base, baselen, pathspec);
+		read_directory(dir, path, baselen==0? strlen(path):baselen, pathspec);
 
 		// if root dir is ignored, then all unversioned files under it are considered ignore
 		enum_unversioned(dir->entries, dir->nr, l_dirTree.bExplicitlyIgnored);

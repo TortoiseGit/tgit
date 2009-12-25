@@ -269,7 +269,7 @@ int statusex_buildin(int argc, const char **argv)
 {
 	const char *projpath;
 	const char *cmd;
-	int res;
+	int res ;//= res;
 
 	if (argc < 3)
 	{
