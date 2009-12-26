@@ -272,7 +272,7 @@ static void enum_unversioned(struct dir_entry **files, int nr, BOOL bIgnored)
 			{
 				if (l_bDirStatus)
 				{
-					l_nLastStatus = l_nEmptyDirStatus;
+					l_nLastStatus = l_nEmptyDirStatus ;
 					update_dirs_unversioned(ent, len);
 				}
 
@@ -509,6 +509,8 @@ static void update_dirs_rec(LPCSTR lpszFileName, UINT nDirLen, struct cache_entr
 		return;
 	}
 
+	if (dir->nStatus == WGFS_Unknown)
+		dir->nStatus = WGFS_Normal;
 	// process next subdir in lpszFileName
 
 	lpszFileName += nDirLen1;
@@ -1351,7 +1353,7 @@ BOOL ig_enum_files(const char *pszProjectPath, const char *pszSubPath, const cha
 	// enumerate unversioned files
 	if ( !(nFlags & WGEFF_SingleFile) )
 	{
-		const char *path = ".", *base = "";
+		const char *path = "", *base = "";
 		int baselen = prefix_len;
 
 		if (baselen)

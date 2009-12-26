@@ -500,6 +500,9 @@ static enum directory_treatment treat_directory(struct dir_struct *dir,
 	const char *dirname, int len,
 	const struct path_simplify *simplify)
 {
+	if(dir->flags & DIR_NO_RECURSE_READDIR)
+		return show_directory;
+
 	/* The "len-1" is to strip the final '/' */
 	switch (directory_exists_in_index(dirname, len-1)) {
 	case index_directory:
