@@ -31,7 +31,8 @@ static const char * const builtin_log_usage =
 	"git log [<options>] [<since>..<until>] [[--] <path>...]\n"
 	"   or: git show [options] <object>...";
 
-static void cmd_log_init(int argc, const char **argv, const char *prefix,
+
+void cmd_log_init(int argc, const char **argv, const char *prefix,
 		      struct rev_info *rev)
 {
 	int i;
