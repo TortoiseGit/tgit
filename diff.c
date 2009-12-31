@@ -776,19 +776,7 @@ static char *pprint_rename(const char *a, const char *b)
 	return strbuf_detach(&name, NULL);
 }
 
-struct diffstat_t {
-	int nr;
-	int alloc;
-	struct diffstat_file {
-		char *from_name;
-		char *name;
-		char *print_name;
-		unsigned is_unmerged:1;
-		unsigned is_binary:1;
-		unsigned is_renamed:1;
-		unsigned int added, deleted;
-	} **files;
-};
+
 
 static struct diffstat_file *diffstat_add(struct diffstat_t *diffstat,
 					  const char *name_a,
@@ -1191,7 +1179,7 @@ static void show_dirstat(struct diff_options *options)
 	gather_dirstat(options->file, &dir, changed, "", 0);
 }
 
-static void free_diffstat_info(struct diffstat_t *diffstat)
+void free_diffstat_info(struct diffstat_t *diffstat)
 {
 	int i;
 	for (i = 0; i < diffstat->nr; i++) {
@@ -2877,7 +2865,7 @@ static void diff_flush_patch(struct diff_filepair *p, struct diff_options *o)
 	run_diff(p, o);
 }
 
-static void diff_flush_stat(struct diff_filepair *p, struct diff_options *o,
+void diff_flush_stat(struct diff_filepair *p, struct diff_options *o,
 			    struct diffstat_t *diffstat)
 {
 	if (diff_unmodified_pair(p))
@@ -3007,7 +2995,7 @@ static void diff_resolve_rename_copy(void)
 	diff_debug_queue("resolve-rename-copy done", q);
 }
 
-static int check_pair_status(struct diff_filepair *p)
+int check_pair_status(struct diff_filepair *p)
 {
 	switch (p->status) {
 	case DIFF_STATUS_UNKNOWN:

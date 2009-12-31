@@ -121,6 +121,7 @@ struct rev_info {
 	struct decoration children;
 	struct decoration merge_simplification;
 	void * pPrivate;
+	struct diffstat_t diffstat;
 };
 
 #define REV_TREE_SAME		0
