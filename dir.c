@@ -312,7 +312,7 @@ static void prep_exclude(struct dir_struct *dir, const char *base, int baselen)
 /* Scan the list and let the last match determine the fate.
  * Return 1 for exclude, 0 for include and -1 for undecided.
  */
-static int excluded_1(const char *pathname,
+int excluded_1(const char *pathname,
 		      int pathlen, const char *basename, int *dtype,
 		      struct exclude_list *el)
 {
