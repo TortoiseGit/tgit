@@ -1,3 +1,4 @@
+#include <cache.h>
 #include "../git-compat-util.h"
 #include "win32.h"
 #include <conio.h>
@@ -5,6 +6,63 @@
 
 #include <shellapi.h>
 
+
+static int *p_opened_file_handle;
+static int p_opened_file_size;
+static int p_alloc_size;
+
+int add_handle(int handle)
+{
+	int i=0;
+	if(p_opened_file_handle == NULL)
+		ALLOC_GROW(p_opened_file_handle, p_opened_file_size+10, p_alloc_size);
+
+	for(i=0;i<p_opened_file_size;i++)
+	{
+		if(p_opened_file_handle[i] == handle)
+			return 0;
+	}
+
+	ALLOC_GROW(p_opened_file_handle, p_opened_file_size+1, p_alloc_size);
+	p_opened_file_handle[p_opened_file_size++] = handle;
+
+}
+
+int remove_handle(int handle)
+{
+	int i=0;
+	if(p_opened_file_handle == NULL)
+		return 0;
+
+	for(i=0;i<p_opened_file_size;i++)
+	{
+		if(p_opened_file_handle[i] == handle)
+		{
+			memcpy(p_opened_file_handle+i, p_opened_file_handle+i+1, sizeof(int)*(p_opened_file_size-i-1));
+			p_opened_file_size--;
+			return 0;
+		}
+	}
+	return 0;
+
+}
+
+int close_all()
+{
+	int i=0;
+	if(p_opened_file_handle== NULL)
+		return 0;
+
+	for( i=0;i< p_opened_file_size; i++)
+	{
+		close(p_opened_file_handle[i]);
+	}
+
+	free(p_opened_file_handle);
+	p_alloc_size=0;
+	p_opened_file_size=0;
+	p_opened_file_handle =0;
+}
 static int err_win_to_posix(DWORD winerr)
 {
 	int error = ENOSYS;
@@ -139,7 +197,20 @@ int mingw_open (const char *filename, int oflags, ...)
 		if (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_DIRECTORY))
 			errno = EISDIR;
 	}
+	
+	if(fd>=0)
+		add_handle(fd);
+
 	return fd;
+}
+
+#undef close
+int mingw_close(int fileHandle)
+{
+	if(fileHandle>=0)
+		remove_handle(fileHandle);
+
+	return close(fileHandle);
 }
 
 static inline time_t filetime_to_time_t(const FILETIME *ft)
