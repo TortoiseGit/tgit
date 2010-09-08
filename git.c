@@ -707,3 +707,10 @@ int main(int argc, char **av)
 
 	return 1;
 }
+
+#undef exit
+extern int vc_exit(int code);
+int vc_exit(int code)
+{
+	exit(code);
+}
