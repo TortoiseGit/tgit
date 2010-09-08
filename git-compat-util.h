@@ -1614,8 +1614,10 @@ int cmd_main(int, const char **);
  * Intercept all calls to exit() and route them to trace2 to
  * optionally emit a message before calling the real exit().
  */
+/* See mingw.c for our own exit redirection
 int common_exit(const char *file, int line, int code);
 #define exit(code) exit(common_exit(__FILE__, __LINE__, (code)))
+*/
 
 /*
  * This include must come after system headers, since it introduces macros that
