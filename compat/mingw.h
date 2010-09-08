@@ -146,7 +146,7 @@ static inline int fcntl(int fd, int cmd, ...)
 	errno = EINVAL;
 	return -1;
 }
-
+extern int vc_exit(int code); // defined in gitdll.dll
 #define sigemptyset(x) (void)0
 #define SIG_BLOCK 0
 #define SIG_UNBLOCK 0
