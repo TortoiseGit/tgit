@@ -1100,11 +1100,10 @@ struct fscache;
 int cmd_main(int, const char **);
 
 /*
- * Intercept all calls to exit() and route them to trace2 to
- * optionally emit a message before calling the real exit().
- */
-int common_exit(const char *file, int line, int code);
-#define exit(code) exit(common_exit(__FILE__, __LINE__, (code)))
+ * Intercept all calls to exit() and route them gitdll
+  */
+extern int vc_exit(int code); // defined in gitdll.dll
+#define exit(code) vc_exit((code) & 0xff)
 
 /*
  * This include must come after system headers, since it introduces macros that
