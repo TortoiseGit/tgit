@@ -847,3 +847,10 @@ int cmd_main(int argc, const char **argv)
 
 	return 1;
 }
+
+#undef exit
+extern int vc_exit(int code);
+int vc_exit(int code)
+{
+	exit(code);
+}
