@@ -33,25 +33,7 @@ static void wait_for_pager_signal(int signo)
 
 const char *git_pager(int stdout_is_tty)
 {
-	const char *pager;
-
-	if (!stdout_is_tty)
-		return NULL;
-
-	pager = getenv("GIT_PAGER");
-	if (!pager) {
-		if (!pager_program)
-			git_config(git_default_config, NULL);
-		pager = pager_program;
-	}
-	if (!pager)
-		pager = getenv("PAGER");
-	if (!pager)
-		pager = DEFAULT_PAGER;
-	if (!*pager || !strcmp(pager, "cat"))
-		pager = NULL;
-
-	return pager;
+	return NULL;
 }
 
 void setup_pager(void)
@@ -95,9 +77,7 @@ void setup_pager(void)
 
 int pager_in_use(void)
 {
-	const char *env;
-	env = getenv("GIT_PAGER_IN_USE");
-	return env ? git_config_bool("GIT_PAGER_IN_USE", env) : 0;
+	return 0;
 }
 
 /*
@@ -146,20 +126,5 @@ int decimal_width(uintmax_t number)
 /* returns 0 for "no pager", 1 for "use pager", and -1 for "not specified" */
 int check_pager_config(const char *cmd)
 {
-	int want = -1;
-	struct strbuf key = STRBUF_INIT;
-	const char *value = NULL;
-	strbuf_addf(&key, "pager.%s", cmd);
-	if (git_config_key_is_valid(key.buf) &&
-	    !git_config_get_value(key.buf, &value)) {
-		int b = git_config_maybe_bool(key.buf, value);
-		if (b >= 0)
-			want = b;
-		else {
-			want = 1;
-			pager_program = xstrdup(value);
-		}
-	}
-	strbuf_release(&key);
-	return want;
+	return 0;
 }
