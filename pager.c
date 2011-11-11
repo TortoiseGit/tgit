@@ -47,25 +47,7 @@ static int core_pager_config(const char *var, const char *value, void *data)
 
 const char *git_pager(int stdout_is_tty)
 {
-	const char *pager;
-
-	if (!stdout_is_tty)
-		return NULL;
-
-	pager = getenv("GIT_PAGER");
-	if (!pager) {
-		if (!pager_program)
-			read_early_config(core_pager_config, NULL);
-		pager = pager_program;
-	}
-	if (!pager)
-		pager = getenv("PAGER");
-	if (!pager)
-		pager = DEFAULT_PAGER;
-	if (!*pager || !strcmp(pager, "cat"))
-		pager = NULL;
-
-	return pager;
+	return NULL;
 }
 
 static void setup_pager_env(struct argv_array *env)
@@ -142,7 +124,7 @@ void setup_pager(void)
 
 int pager_in_use(void)
 {
-	return git_env_bool("GIT_PAGER_IN_USE", 0);
+	return 0;
 }
 
 /*
@@ -196,34 +178,11 @@ struct pager_command_config_data {
 
 static int pager_command_config(const char *var, const char *value, void *vdata)
 {
-	struct pager_command_config_data *data = vdata;
-	const char *cmd;
-
-	if (skip_prefix(var, "pager.", &cmd) && !strcmp(cmd, data->cmd)) {
-		int b = git_parse_maybe_bool(value);
-		if (b >= 0)
-			data->want = b;
-		else {
-			data->want = 1;
-			data->value = xstrdup(value);
-		}
-	}
-
 	return 0;
 }
 
 /* returns 0 for "no pager", 1 for "use pager", and -1 for "not specified" */
 int check_pager_config(const char *cmd)
 {
-	struct pager_command_config_data data;
-
-	data.cmd = cmd;
-	data.want = -1;
-	data.value = NULL;
-
-	read_early_config(pager_command_config, &data);
-
-	if (data.value)
-		pager_program = data.value;
-	return data.want;
+	return 0;
 }
