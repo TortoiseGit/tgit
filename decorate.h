@@ -57,5 +57,6 @@ void *add_decoration(struct decoration *n, const struct object *obj, void *decor
  * association, this function returns NULL.
  */
 void *lookup_decoration(struct decoration *n, const struct object *obj);
+extern void free_decoration(struct decoration *n);
 
 #endif
