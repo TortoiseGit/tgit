@@ -14,5 +14,6 @@ struct decoration {
 
 extern void *add_decoration(struct decoration *n, const struct object *obj, void *decoration);
 extern void *lookup_decoration(struct decoration *n, const struct object *obj);
+extern void free_decoration(struct decoration *n);
 
 #endif

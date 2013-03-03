@@ -32,6 +32,26 @@ static void *insert_decoration(struct decoration *n, const struct object *base, 
 	return NULL;
 }
 
+void free_decoration(struct decoration *n)
+{
+	unsigned int i;
+	struct object_decoration *hash = n->hash;
+
+	if (n == NULL || n->hash == NULL)
+		return;
+
+	for (i = 0; i < n->size; ++i) {
+		if (hash[i].base && hash[i].decoration)
+			free(hash[i].decoration);
+	}
+
+	free(n->hash);
+
+	n->size = 0;
+	n->hash = NULL;
+	n->nr = 0;
+}
+
 static void grow_decoration(struct decoration *n)
 {
 	int i;
