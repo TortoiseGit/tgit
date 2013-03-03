@@ -149,6 +149,11 @@ static int add_graft_decoration(const struct commit_graft *graft, void *cb_data)
 
 void load_ref_decorations(int flags)
 {
+	if (decoration_loaded)
+	{
+		free_decoration(&name_decoration);
+		decoration_loaded = 0;
+	}
 	if (!decoration_loaded) {
 
 		decoration_loaded = 1;
