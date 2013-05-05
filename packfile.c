@@ -340,6 +340,46 @@ static void close_pack_revindex(struct packed_git *p)
 	p->revindex_data = NULL;
 }
 
+
+static int prepare_packed_git_run_once = 0;
+int has_open_pack_windows(struct packed_git *p)
+{
+	struct pack_window *w, **ww = &p->windows;
+
+	while (*ww)
+	{
+		w = *ww;
+		if (w->inuse_cnt)
+			return 1;
+		ww = &w->next;
+	}
+	return 0;
+}
+
+void free_all_pack(void)
+{
+	struct packed_git *p, **pp = &the_repository->objects->packed_git;
+	struct list_head *pos;
+
+	clear_delta_base_cache();
+	close_object_store(the_repository->objects);
+
+	while (*pp) {
+		p = *pp;
+		if (!has_open_pack_windows(p))
+		{
+			close_pack(p);
+			*pp = p->next;
+			free(p);
+		}
+		else
+			pp = &p->next;
+	}
+	INIT_LIST_HEAD(&the_repository->objects->packed_git_mru);
+	prepare_packed_git_run_once = 0; // this needs to be resetted so that branches are reread
+	hashmap_init(&the_repository->objects->pack_map, pack_map_entry_cmp, NULL, 0);
+}
+
 static void close_pack_mtimes(struct packed_git *p)
 {
 	if (!p->mtimes_map)
@@ -990,7 +1030,7 @@ static void prepare_packed_git_mru(struct repository *r)
 		list_add_tail(&p->mru, &r->objects->packed_git_mru);
 }
 
-static void prepare_packed_git(struct repository *r)
+void prepare_packed_git(struct repository *r)
 {
 	struct object_directory *odb;
 
