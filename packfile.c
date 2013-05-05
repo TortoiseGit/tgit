@@ -329,6 +329,50 @@ void close_pack_index(struct packed_git *p)
 	}
 }
 
+
+static int prepare_packed_git_run_once = 0;
+int has_open_pack_windows(struct packed_git *p)
+{
+	struct pack_window *w, **ww = &p->windows;
+
+	while (*ww)
+	{
+		w = *ww;
+		if (w->inuse_cnt)
+			return 1;
+		ww = &w->next;
+	}
+	return 0;
+}
+
+void free_all_pack(void)
+{
+	struct packed_git *p, **pp = &the_repository->objects->packed_git;
+	struct list_head *pos;
+
+	clear_delta_base_cache();
+
+	while (*pp) {
+		p = *pp;
+		if (!has_open_pack_windows(p))
+		{
+			close_pack_windows(p);
+			if (p->pack_fd != -1) {
+				close(p->pack_fd);
+				pack_open_fds--;
+			}
+			close_pack_index(p);
+			free(p->bad_object_sha1);
+			*pp = p->next;
+			free(p);
+		}
+		else
+			pp = &p->next;
+	}
+	INIT_LIST_HEAD(&the_repository->objects->packed_git_mru);
+	prepare_packed_git_run_once = 0; // this needs to be resetted so that branches are reread
+}
+
 void close_pack(struct packed_git *p)
 {
 	close_pack_windows(p);
@@ -969,7 +1013,7 @@ static void prepare_packed_git_mru(struct repository *r)
 		list_add_tail(&p->mru, &r->objects->packed_git_mru);
 }
 
-static void prepare_packed_git(struct repository *r)
+void prepare_packed_git(struct repository *r)
 {
 	struct object_directory *odb;
 
