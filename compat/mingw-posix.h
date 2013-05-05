@@ -215,11 +215,17 @@ int mingw_open (const char *filename, int oflags, ...);
 #define open mingw_open
 #undef OPEN_RETURNS_EINTR
 
+int mingw_close(int fileHandle);
+#define close mingw_close
+
 int mingw_fgetc(FILE *stream);
 #define fgetc mingw_fgetc
 
 FILE *mingw_fopen (const char *filename, const char *otype);
 #define fopen mingw_fopen
+
+int mingw_fclose (FILE * stream);
+#define fclose mingw_fclose
 
 FILE *mingw_freopen (const char *filename, const char *otype, FILE *stream);
 #define freopen mingw_freopen

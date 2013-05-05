@@ -35,6 +35,68 @@
 
 #define HCAST(type, handle) ((type)(intptr_t)handle)
 
+struct open_data
+{
+	int fd;
+};
+
+static struct open_data *p_opened_file_handle;
+static int p_opened_file_size;
+static int p_alloc_size;
+
+void add_handle(int fd)
+{
+	struct open_data handle;
+	handle.fd = fd;
+
+	if (!p_opened_file_handle)
+		ALLOC_GROW(p_opened_file_handle, p_opened_file_size + 10, p_alloc_size);
+
+	for (int i = 0; i < p_opened_file_size; ++i)
+	{
+		if (p_opened_file_handle[i].fd == handle.fd)
+			return;
+	}
+
+	ALLOC_GROW(p_opened_file_handle, p_opened_file_size + 1, p_alloc_size);
+	p_opened_file_handle[p_opened_file_size++] = handle;
+}
+
+int remove_handle(int fd)
+{
+	if (!p_opened_file_handle)
+		return FALSE;
+
+	for (int i = 0; i < p_opened_file_size; ++i)
+	{
+		if (p_opened_file_handle[i].fd == fd)
+		{
+			if (i != p_opened_file_size - 1)
+				memmove(p_opened_file_handle + i, p_opened_file_handle + i + 1, (p_opened_file_size - i - 1) * sizeof *(p_opened_file_handle));
+
+			--p_opened_file_size;
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+#undef close
+
+void close_all(void)
+{
+	int i = 0;
+	if (!p_opened_file_handle)
+		return;
+
+	for (i = 0; i < p_opened_file_size; ++i)
+		close(p_opened_file_handle[i].fd);
+
+	FREE_AND_NULL(p_opened_file_handle);
+	p_alloc_size = 0;
+	p_opened_file_size = 0;
+}
+
 void open_in_gdb(void)
 {
 	static struct child_process cp = CHILD_PROCESS_INIT;
@@ -933,6 +995,10 @@ int mingw_open (const char *filename, int oflags, ...)
 		if (fd >= 0 && set_hidden_flag(wfilename, 1))
 			warning("could not mark '%s' as hidden.", filename);
 	}
+
+	if (fd >= 0)
+		add_handle(fd);
+
 	return fd;
 }
 
@@ -988,7 +1054,23 @@ FILE *mingw_fopen (const char *filename, const char *otype)
 		errno = ENOENT;
 	if (file && hide && set_hidden_flag(wfilename, 1))
 		warning("could not mark '%s' as hidden.", filename);
+	if (file)
+		add_handle(fileno(file));
 	return file;
+}
+
+#undef close
+int mingw_close(int fileHandle)
+{
+	if (fileHandle >= 0)
+	{
+		if (remove_handle(fileHandle) == TRUE)
+			return close(fileHandle);
+
+		return FALSE;
+	}
+
+	return close(fileHandle);
 }
 
 FILE *mingw_freopen (const char *filename, const char *otype, FILE *stream)
@@ -1016,6 +1098,15 @@ FILE *mingw_freopen (const char *filename, const char *otype, FILE *stream)
 	if (file && hide && set_hidden_flag(wfilename, 1))
 		warning("could not mark '%s' as hidden.", filename);
 	return file;
+}
+
+#undef fclose
+int mingw_fclose(FILE * stream)
+{
+	if (remove_handle(fileno(stream)) == TRUE)
+		return fclose(stream);
+
+	return FALSE;
 }
 
 #undef fflush
