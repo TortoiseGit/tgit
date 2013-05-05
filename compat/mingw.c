@@ -1,3 +1,4 @@
+#include <cache.h>
 #include "../git-compat-util.h"
 #include "win32.h"
 #include <conio.h>
@@ -14,6 +15,89 @@
 #include "win32/fscache.h"
 
 #define HCAST(type, handle) ((type)(intptr_t)handle)
+
+#include <shellapi.h>
+
+#define OPEN_HANDLE	1
+#define OPEN_FILE	2
+
+struct open_data
+{
+	long long	data;
+	int			flag;
+};
+
+static struct open_data *p_opened_file_handle;
+static int p_opened_file_size;
+static int p_alloc_size;
+
+void add_handle(long long x, int flag)
+{
+	int i = 0;
+	struct open_data handle;
+	handle.data = x;
+	handle.flag = flag;
+
+	if (p_opened_file_handle == NULL)
+		ALLOC_GROW(p_opened_file_handle, p_opened_file_size + 10, p_alloc_size);
+
+	for (i = 0; i < p_opened_file_size; ++i)
+	{
+		if (p_opened_file_handle[i].data == handle.data && p_opened_file_handle[i].flag == handle.flag)
+			return;
+	}
+
+	ALLOC_GROW(p_opened_file_handle, p_opened_file_size + 1, p_alloc_size);
+	p_opened_file_handle[p_opened_file_size++] = handle;
+}
+
+int remove_handle(long long x, int flag)
+{
+	int i = 0;
+	struct open_data handle;
+	handle.data = x;
+	handle.flag = flag;
+
+	if (p_opened_file_handle == NULL)
+		return FALSE;
+
+	for (i = 0; i < p_opened_file_size; ++i)
+	{
+		if (p_opened_file_handle[i].data == handle.data && p_opened_file_handle[i].flag == handle.flag)
+		{
+			if (i != p_opened_file_size - 1)
+				memmove(p_opened_file_handle + i, p_opened_file_handle + i + 1, (p_opened_file_size - i - 1) * sizeof *(p_opened_file_handle));
+
+			--p_opened_file_size;
+			return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+#undef close
+#undef fclose
+
+void close_all(void)
+{
+	int i = 0;
+	if (p_opened_file_handle== NULL)
+		return;
+
+	for (i = 0; i < p_opened_file_size; ++i)
+	{
+		if (p_opened_file_handle[i].flag == OPEN_HANDLE)
+			close(p_opened_file_handle[i].data);
+		
+		if (p_opened_file_handle[i].flag == OPEN_FILE)
+			fclose((FILE*)p_opened_file_handle[i].data);
+	}
+
+	free(p_opened_file_handle);
+	p_alloc_size = 0;
+	p_opened_file_size = 0;
+	p_opened_file_handle = 0;
+}
 
 void open_in_gdb(void)
 {
@@ -725,6 +809,10 @@ int mingw_open (const char *filename, int oflags, ...)
 		if (fd >= 0 && set_hidden_flag(wfilename, 1))
 			warning("could not mark '%s' as hidden.", filename);
 	}
+
+	if (fd >= 0)
+		add_handle(fd, OPEN_HANDLE);
+
 	return fd;
 }
 
@@ -773,7 +861,23 @@ FILE *mingw_fopen (const char *filename, const char *otype)
 		errno = ENOENT;
 	if (file && hide && set_hidden_flag(wfilename, 1))
 		warning("could not mark '%s' as hidden.", filename);
+	if (file)
+		add_handle((long long)file, OPEN_FILE);
 	return file;
+}
+
+#undef close
+int mingw_close(int fileHandle)
+{
+	if (fileHandle >= 0)
+	{
+		if (remove_handle(fileHandle, OPEN_HANDLE) == TRUE)
+			return close(fileHandle);
+		else
+			return FALSE;
+	}
+	else
+		return close(fileHandle);
 }
 
 FILE *mingw_freopen (const char *filename, const char *otype, FILE *stream)
@@ -794,6 +898,13 @@ FILE *mingw_freopen (const char *filename, const char *otype, FILE *stream)
 	if (file && hide && set_hidden_flag(wfilename, 1))
 		warning("could not mark '%s' as hidden.", filename);
 	return file;
+}
+
+#undef fclose
+int mingw_fclose(FILE * stream)
+{
+	remove_handle((long long)stream, OPEN_FILE);
+	return fclose(stream);
 }
 
 #undef fflush
