@@ -277,6 +277,9 @@ struct rev_info {
 	struct revision_sources *sources;
 
 	struct topo_walk_info *topo_walk_info;
+
+	void *pPrivate;
+	struct diffstat_t diffstat;
 };
 
 int ref_excluded(struct string_list *, const char *path);
