@@ -391,6 +391,14 @@ static void cmd_log_init(int argc, const char **argv, const char *prefix,
 	cmd_log_init_finish(argc, argv, prefix, rev, opt, cfg);
 }
 
+void cmd_log_init_tgit(int argc, const char **argv, const char *prefix, struct rev_info *rev, struct setup_revision_opt *opt)
+{
+	struct log_config cfg;
+	log_config_init(&cfg);
+	cfg.use_mailmap_config = 0;
+	cmd_log_init(argc, argv, prefix, rev, opt, &cfg);
+	log_config_release(&cfg);
+}
 static int cmd_log_walk_no_free(struct rev_info *rev)
 {
 	struct commit *commit;

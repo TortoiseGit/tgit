@@ -6263,7 +6263,7 @@ static int diff_flush_patch_quietly(struct diff_filepair *p, struct diff_options
 	return ret;
 }
 
-static void diff_flush_stat(struct diff_filepair *p, struct diff_options *o,
+void diff_flush_stat(struct diff_filepair *p, struct diff_options *o,
 			    struct diffstat_t *diffstat)
 {
 	if (diff_unmodified_pair(p))
@@ -6404,7 +6404,7 @@ static void diff_resolve_rename_copy(void)
 	diff_debug_queue("resolve-rename-copy done", q);
 }
 
-static int check_pair_status(struct diff_filepair *p)
+int check_pair_status(struct diff_filepair *p)
 {
 	switch (p->status) {
 	case DIFF_STATUS_UNKNOWN:
