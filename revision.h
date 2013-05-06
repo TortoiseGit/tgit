@@ -213,6 +213,9 @@ struct rev_info {
 
 	struct commit_list *previous_parents;
 	const char *break_bar;
+
+	void * pPrivate;
+	struct diffstat_t diffstat;
 };
 
 extern int ref_excluded(struct string_list *, const char *path);
