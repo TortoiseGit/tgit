@@ -378,11 +378,20 @@ static void cmd_log_init(int argc, const char **argv, const char *prefix,
 	cmd_log_init_finish(argc, argv, prefix, rev, opt, cfg);
 }
 
+void cmd_log_init_tgit(int argc, const char **argv, const char *prefix, struct rev_info *rev, struct setup_revision_opt *opt)
+{
+	struct log_config cfg;
+	log_config_init(&cfg);
+	cfg.use_mailmap_config = 0;
+	cmd_log_init(argc, argv, prefix, rev, opt, &cfg);
+	log_config_release(&cfg);
+}
+
 /*
  * This gives a rough estimate for how many commits we
  * will print out in the list.
  */
-static int estimate_commit_count(struct commit_list *list)
+int estimate_commit_count(struct commit_list *list)
 {
 	int n = 0;
 
