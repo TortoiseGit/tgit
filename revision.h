@@ -378,6 +378,10 @@ struct rev_info {
 
 	/* Missing commits to be tracked without failing traversal. */
 	struct oidset missing_commits;
+
+	/* TGit extension */
+	void *pPrivate;
+	struct diffstat_t diffstat;
 };
 
 /**
