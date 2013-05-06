@@ -311,6 +311,9 @@ struct rev_info {
 	 * This is loaded from the commit-graph being used.
 	 */
 	struct bloom_filter_settings *bloom_filter_settings;
+
+	void *pPrivate;
+	struct diffstat_t diffstat;
 };
 
 int ref_excluded(struct string_list *, const char *path);
