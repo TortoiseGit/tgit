@@ -229,6 +229,9 @@ struct rev_info {
 	const char *break_bar;
 
 	struct revision_sources *sources;
+
+	void *pPrivate;
+	struct diffstat_t diffstat;
 };
 
 int ref_excluded(struct string_list *, const char *path);
