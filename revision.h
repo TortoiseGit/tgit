@@ -318,6 +318,9 @@ struct rev_info {
 
 	/* misc. flags related to '--no-kept-objects' */
 	unsigned keep_pack_cache_flags;
+
+	void *pPrivate;
+	struct diffstat_t diffstat;
 };
 
 int ref_excluded(struct string_list *, const char *path);
