@@ -367,6 +367,10 @@ struct rev_info {
 
 	/* Location where temporary objects for remerge-diff are written. */
 	struct tmp_objdir *remerge_objdir;
+
+	/* TGit extension */
+	void *pPrivate;
+	struct diffstat_t diffstat;
 };
 
 /**
