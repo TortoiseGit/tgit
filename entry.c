@@ -271,7 +271,7 @@ void update_ce_after_write(const struct checkout *state, struct cache_entry *ce,
 }
 
 /* Note: ca is used (and required) iff the entry refers to a regular file. */
-static int write_entry(struct cache_entry *ce, char *path, struct conv_attrs *ca,
+int write_entry(struct cache_entry *ce, char *path, struct conv_attrs *ca,
 		       const struct checkout *state, int to_tempfile,
 		       int *nr_checkouts)
 {
