@@ -31,11 +31,6 @@ typedef int sigset_t;
 #include "mingw.h"
 
 /* Git runtime infomation */
-#define RUNTIME_PREFIX
-#define FALLBACK_RUNTIME_PREFIX ""
-#define PREFIX "."
-#define BINDIR "bin"
-
 #define ETC_GITCONFIG "etc\\gitconfig"
 #define ETC_GITATTRIBUTES "etc\\gitattributes"
 #define GIT_EXEC_PATH "bin"
