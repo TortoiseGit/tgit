@@ -6,26 +6,31 @@
 
 static const char *argv_exec_path;
 
-#ifdef RUNTIME_PREFIX
 static const char *argv0_path;
 
 static const char *system_prefix(void)
 {
-	static const char *prefix;
+	static const char *syspath = NULL;
 
-	assert(argv0_path);
-	assert(is_absolute_path(argv0_path));
-
-	if (!prefix &&
-	    !(prefix = strip_path_suffix(argv0_path, GIT_EXEC_PATH)) &&
-	    !(prefix = strip_path_suffix(argv0_path, BINDIR)) &&
-	    !(prefix = strip_path_suffix(argv0_path, "git"))) {
-		prefix = FALLBACK_RUNTIME_PREFIX;
-		trace_printf("RUNTIME_PREFIX requested, "
-				"but prefix computation failed.  "
-				"Using static fallback '%s'.\n", prefix);
+	if (!syspath)
+	{
+		wchar_t lszValue[MAX_PATH];
+		HKEY hKey;
+		DWORD dwType = REG_SZ;
+		DWORD dwSize = MAX_PATH;
+		if (RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\TortoiseGit", NULL, KEY_ALL_ACCESS, &hKey) == ERROR_SUCCESS)
+		{
+			if (RegQueryValueExW(hKey, L"MSysGit", NULL, &dwType, (LPBYTE)&lszValue, &dwSize) == ERROR_SUCCESS)
+			{
+				char pointer[MAX_PATH];
+				xwcstoutf(pointer, lszValue, MAX_PATH);
+				syspath = strip_path_suffix(pointer, GIT_EXEC_PATH);
+			}
+		}
+		RegCloseKey(hKey);
 	}
-	return prefix;
+
+	return syspath;
 }
 
 void git_extract_argv0_path(const char *argv0)
@@ -40,19 +45,6 @@ void git_extract_argv0_path(const char *argv0)
 	if (slash)
 		argv0_path = xstrndup(argv0, slash - argv0);
 }
-
-#else
-
-static const char *system_prefix(void)
-{
-	return FALLBACK_RUNTIME_PREFIX;
-}
-
-void git_extract_argv0_path(const char *argv0)
-{
-}
-
-#endif /* RUNTIME_PREFIX */
 
 char *system_path(const char *path)
 {
