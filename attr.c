@@ -898,7 +898,7 @@ const char *git_attr_system_file(void)
 {
 	static const char *system_wide;
 	if (!system_wide)
-		system_wide = system_path(ETC_GITATTRIBUTES);
+		system_wide = system_path("..\\" ETC_GITATTRIBUTES);
 	return system_wide;
 }
 

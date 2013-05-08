@@ -28,8 +28,6 @@
 
 static const char *system_prefix(void);
 
-#ifdef RUNTIME_PREFIX
-
 /**
  * When using a runtime prefix, Git dynamically resolves paths relative to its
  * executable.
@@ -46,21 +44,46 @@ static const char *executable_dirname;
 
 static const char *system_prefix(void)
 {
-	static const char *prefix;
+	static const char *syspath = NULL;
 
-	assert(executable_dirname);
-	assert(is_absolute_path(executable_dirname));
+	if (!syspath)
+	{
+		wchar_t lszValue[MAX_PATH];
+		HKEY hKey;
+		DWORD dwType = REG_SZ;
+		DWORD dwSize = MAX_PATH;
+		if (RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\TortoiseGit", 0, KEY_ALL_ACCESS, &hKey) == ERROR_SUCCESS)
+		{
+			if (RegQueryValueExW(hKey, L"MSysGit", NULL, &dwType, (LPBYTE)&lszValue, &dwSize) == ERROR_SUCCESS)
+			{
+				char pointer[MAX_PATH];
+				xwcstoutf(pointer, lszValue, MAX_PATH);
+				syspath = strip_path_suffix(pointer, "cmd");
+				if (!syspath)
+					syspath = strip_path_suffix(pointer, GIT_EXEC_PATH);
 
-	if (!prefix &&
-	    !(prefix = strip_path_suffix(executable_dirname, GIT_EXEC_PATH)) &&
-	    !(prefix = strip_path_suffix(executable_dirname, BINDIR)) &&
-	    !(prefix = strip_path_suffix(executable_dirname, "git"))) {
-		prefix = FALLBACK_RUNTIME_PREFIX;
-		trace_printf("RUNTIME_PREFIX requested, "
-				"but prefix computation failed.  "
-				"Using static fallback '%s'.\n", prefix);
+				do {
+					char *configpath;
+#ifdef _WIN64
+					configpath = mkpath("%s\\mingw64", syspath);
+					if (!access(configpath, F_OK)) {
+						free(syspath);
+						syspath = xstrdup(configpath);
+						break;
+					}
+#endif
+					configpath = mkpath("%s\\mingw32", syspath);
+					if (!access(configpath, F_OK)) {
+						free(syspath);
+						syspath = xstrdup(configpath);
+					}
+				} while (FALSE);
+			}
+			RegCloseKey(hKey);
+		}
 	}
-	return prefix;
+
+	return syspath;
 }
 
 /*
@@ -244,26 +267,6 @@ void git_resolve_executable_dir(const char *argv0)
 	trace_printf("trace: resolved executable dir: %s\n",
 		     executable_dirname);
 }
-
-#else
-
-/*
- * When not using a runtime prefix, Git uses a hard-coded path.
- */
-static const char *system_prefix(void)
-{
-	return FALLBACK_RUNTIME_PREFIX;
-}
-
-/*
- * This is called during initialization, but No work needs to be done here when
- * runtime prefix is not being used.
- */
-void git_resolve_executable_dir(const char *argv0 UNUSED)
-{
-}
-
-#endif /* RUNTIME_PREFIX */
 
 char *system_path(const char *path)
 {
