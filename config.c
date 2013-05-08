@@ -1979,7 +1979,7 @@ char *git_system_config(void)
 {
 	char *system_config = xstrdup_or_null(getenv("GIT_CONFIG_SYSTEM"));
 	if (!system_config)
-		system_config = system_path(ETC_GITCONFIG);
+		system_config = system_path("..\\" ETC_GITCONFIG);
 	normalize_path_copy(system_config, system_config);
 	return system_config;
 }
