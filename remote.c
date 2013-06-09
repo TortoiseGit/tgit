@@ -15,6 +15,7 @@
 #include "commit-reach.h"
 #include "advice.h"
 #include "connect.h"
+#include <sal.h>
 
 enum map_direction { FROM_SRC, FROM_DST };
 
@@ -1844,8 +1845,7 @@ int branch_merge_matches(struct branch *branch,
 	return refname_match(branch->merge[i]->src, refname);
 }
 
-__attribute__((format (printf,2,3)))
-static const char *error_buf(struct strbuf *err, const char *fmt, ...)
+static const char *error_buf(struct strbuf *err, _Printf_format_string_ const char *fmt, ...)
 {
 	if (err) {
 		va_list ap;
