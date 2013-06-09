@@ -67,7 +67,7 @@ static int show_origin;
 	{ OPTION_CALLBACK, (s), (l), (v), NULL, (h), PARSE_OPT_NOARG | \
 	PARSE_OPT_NONEG, option_parse_type, (i) }
 
-static struct option builtin_config_options[];
+extern struct option builtin_config_options[];
 
 static int option_parse_type(const struct option *opt, const char *arg,
 			     int unset)
