@@ -719,7 +719,7 @@ static void group_init(xdfile_t *xdf, struct xdlgroup *g)
  * Move g to describe the next (possibly empty) group in xdf and return 0. If g
  * is already at the end of the file, do nothing and return -1.
  */
-static inline int group_next(xdfile_t *xdf, struct xdlgroup *g)
+static int group_next(xdfile_t *xdf, struct xdlgroup *g)
 {
 	if (g->end == xdf->nrec)
 		return -1;
@@ -735,7 +735,7 @@ static inline int group_next(xdfile_t *xdf, struct xdlgroup *g)
  * Move g to describe the previous (possibly empty) group in xdf and return 0.
  * If g is already at the beginning of the file, do nothing and return -1.
  */
-static inline int group_previous(xdfile_t *xdf, struct xdlgroup *g)
+static int group_previous(xdfile_t *xdf, struct xdlgroup *g)
 {
 	if (g->start == 0)
 		return -1;
