@@ -24,6 +24,27 @@ static __inline int strcasecmp (const char *s1, const char *s2)
 
 #undef ERROR
 
-#include "compat/mingw.h"
+#include "mingw.h"
 
+/* Git runtime infomation */
+#define RUNTIME_PREFIX
+#define PREFIX "."
+#define BINDIR "bin"
+
+#define SHA1_HEADER "block-sha1\\sha1.h"
+
+#define ETC_GITCONFIG "etc\\gitconfig"
+#define ETC_GITATTRIBUTES "etc\\gitattributes"
+#define GIT_EXEC_PATH "bin"
+#define GIT_MAN_PATH "man"
+#define GIT_INFO_PATH "info"
+#define GIT_HTML_PATH "doc\\git\\html"
+#define DEFAULT_GIT_TEMPLATE_DIR "share\\git-core\\templates"
+#endif
+
+/* Git version infomation */
+#ifndef __MSVC__VERSION
+#define __MSVC__VERSION
+#define GIT_VERSION "2.10.0"
+#define GIT_USER_AGENT "git/" GIT_VERSION
 #endif

@@ -22,6 +22,7 @@
 #ifndef _GL_POLL_H
 #define _GL_POLL_H
 
+#if(_WIN32_WINNT < 0x0600)
 /* fake a poll(2) environment */
 #define POLLIN      0x0001      /* any readable data available   */
 #define POLLPRI     0x0002      /* OOB/Urgent readable data      */
@@ -40,6 +41,7 @@ struct pollfd
   short events;                 /* events we are interested in   */
   short revents;                /* events found on return        */
 };
+#endif
 
 typedef unsigned long nfds_t;
 

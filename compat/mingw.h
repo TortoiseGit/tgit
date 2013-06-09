@@ -147,18 +147,18 @@ static inline int fcntl(int fd, int cmd, ...)
 /* bash cannot reliably detect negative return codes as failure */
 #define exit(code) exit((code) & 0xff)
 #define sigemptyset(x) (void)0
-static inline int sigaddset(sigset_t *set, int signum)
-{ return 0; }
+//static inline int sigaddset(sigset_t *set, int signum)
+//{ return 0; }
 #define SIG_BLOCK 0
 #define SIG_UNBLOCK 0
-static inline int sigprocmask(int how, const sigset_t *set, sigset_t *oldset)
-{ return 0; }
+//static inline int sigprocmask(int how, const sigset_t *set, sigset_t *oldset)
+//{ return 0; }
 static inline pid_t getppid(void)
 { return 1; }
 static inline pid_t getpgid(pid_t pid)
-{ return pid == 0 ? getpid() : pid; }
+{ return pid == 0 ? _getpid() : pid; }
 static inline pid_t tcgetpgrp(int fd)
-{ return getpid(); }
+{ return _getpid(); }
 
 /*
  * simple adaptors
