@@ -5,12 +5,6 @@
 #include "strbuf.h"
 #include "gettext.h"
 
-#ifndef GIT_VERSION_H
-# include "version-def.h"
-#else
-# include GIT_VERSION_H
-#endif
-
 const char git_version_string[] = GIT_VERSION;
 const char git_built_from_commit_string[] = GIT_BUILT_FROM_COMMIT;
 

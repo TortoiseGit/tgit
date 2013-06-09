@@ -150,18 +150,14 @@ static inline int fcntl(int fd UNUSED, int cmd, ...)
 }
 
 #define sigemptyset(x) (void)0
-static inline int sigaddset(sigset_t *set UNUSED, int signum UNUSED)
-{ return 0; }
 #define SIG_BLOCK 0
 #define SIG_UNBLOCK 0
-static inline int sigprocmask(int how UNUSED, const sigset_t *set UNUSED, sigset_t *oldset UNUSED)
-{ return 0; }
 static inline pid_t getppid(void)
 { return 1; }
 static inline pid_t getpgid(pid_t pid)
-{ return pid == 0 ? getpid() : pid; }
+{ return pid == 0 ? _getpid() : pid; }
 static inline pid_t tcgetpgrp(int fd UNUSED)
-{ return getpid(); }
+{ return _getpid(); }
 
 /*
  * simple adaptors
