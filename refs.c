@@ -1549,6 +1549,11 @@ static struct ref_store_hash_entry *alloc_ref_store_hash_entry(
 /* A pointer to the ref_store for the main repository: */
 static struct ref_store *main_ref_store;
 
+void gimme_main_ref_store(struct ref_store** refs)
+{
+	*refs = main_ref_store;
+}
+
 /* A hashmap of ref_stores, stored by submodule name: */
 static struct hashmap submodule_ref_stores;
 
