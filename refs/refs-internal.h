@@ -242,6 +242,14 @@ const char *find_descendant_ref(const char *dirname,
 
 int rename_ref_available(const char *oldname, const char *newname);
 
+/*
+* Invalidate the reference cache for the specified submodule.  Use
+* submodule=NULL to invalidate the cache for the main module.  This
+* function must be called if references are changed via a mechanism
+* other than the refs API.
+*/
+extern void invalidate_ref_cache(const char *submodule);
+
 /* We allow "recursive" symbolic refs. Only within reason, though */
 #define SYMREF_MAXDEPTH 5
 
