@@ -233,7 +233,7 @@ static struct packed_ref_store *packed_downcast(struct ref_store *ref_store,
 	return refs;
 }
 
-static void clear_snapshot(struct packed_ref_store *refs)
+void clear_snapshot(struct packed_ref_store *refs)
 {
 	if (refs->snapshot) {
 		struct snapshot *snapshot = refs->snapshot;
@@ -241,6 +241,13 @@ static void clear_snapshot(struct packed_ref_store *refs)
 		refs->snapshot = NULL;
 		release_snapshot(snapshot);
 	}
+}
+
+void clear_packed_backend_refstore(struct ref_store* ref_store)
+{
+	struct packed_ref_store *refs = packed_downcast(ref_store, REF_STORE_READ, "read_raw_ref");
+	clear_snapshot(refs);
+	free(refs->path);
 }
 
 static NORETURN void die_unterminated_line(const char *path,

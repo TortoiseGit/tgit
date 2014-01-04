@@ -241,6 +241,11 @@ int refs_rename_ref_available(struct ref_store *refs,
 			      const char *old_refname,
 			      const char *new_refname);
 
+/*
+ * Invalidate the reference cache for the main module.
+ */
+extern void invalidate_ref_cache(void);
+
 /* We allow "recursive" symbolic refs. Only within reason, though */
 #define SYMREF_MAXDEPTH 5
 

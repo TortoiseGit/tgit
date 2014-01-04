@@ -169,6 +169,27 @@ static void files_reflog_path_other_worktrees(struct files_ref_store *refs,
 			    real_ref);
 }
 
+void invalidate_ref_cache(void)
+{
+	struct strbuf sb = STRBUF_INIT;
+	struct ref_store *refs = get_main_ref_store(the_repository);
+	if (!refs)
+		return;
+	struct files_ref_store *file_refs = files_downcast(refs, 0, "invalidate_ref_cache");
+	clear_snapshot(file_refs->packed_ref_store);
+	clear_loose_ref_cache(file_refs);
+	free(file_refs->gitdir);
+	free(file_refs->gitcommondir);
+	clear_packed_backend_refstore(file_refs->packed_ref_store);
+	free(file_refs->packed_ref_store);
+	file_refs->gitdir = xstrdup(get_git_dir());
+	get_common_dir_noenv(&sb, get_git_dir());
+	file_refs->gitcommondir = strbuf_detach(&sb, NULL);
+	strbuf_addf(&sb, "%s/packed-refs", file_refs->gitcommondir);
+	file_refs->packed_ref_store = packed_ref_store_create(sb.buf, file_refs->store_flags);
+	strbuf_release(&sb);
+}
+
 static void files_reflog_path(struct files_ref_store *refs,
 			      struct strbuf *sb,
 			      const char *refname)
