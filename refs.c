@@ -1700,6 +1700,11 @@ static struct ref_store_hash_entry *alloc_ref_store_hash_entry(
 	return entry;
 }
 
+void gimme_main_ref_store(struct ref_store** refs)
+{
+	*refs = get_main_ref_store(the_repository);
+}
+
 /* A hashmap of ref_stores, stored by submodule name: */
 static struct hashmap submodule_ref_stores;
 
