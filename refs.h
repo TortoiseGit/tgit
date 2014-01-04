@@ -231,6 +231,14 @@ int pack_refs(unsigned int flags);
  */
 int safe_create_reflog(const char *refname, int force_create, struct strbuf *err);
 
+/*
+ * Invalidate the reference cache for the specified submodule.  Use
+ * submodule=NULL to invalidate the cache for the main module.  This
+ * function must be called if references are changed via a mechanism
+ * other than the refs API.
+ */
+extern void invalidate_ref_cache(const char *submodule);
+
 /** Reads log for the value of ref during at_time. **/
 extern int read_ref_at(const char *refname, unsigned int flags,
 		       unsigned long at_time, int cnt,
