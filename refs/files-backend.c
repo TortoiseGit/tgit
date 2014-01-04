@@ -180,6 +180,26 @@ static struct files_ref_store *files_downcast(struct ref_store *ref_store,
 	return refs;
 }
 
+void invalidate_ref_cache(void)
+{
+	struct strbuf sb = STRBUF_INIT;
+	struct ref_store *refs;
+	gimme_main_ref_store(&refs);
+	if (!refs)
+		return;
+	struct files_ref_store *file_refs = files_downcast(refs, 0, "invalidate_ref_cache");
+	clear_packed_ref_cache(file_refs);
+	clear_loose_ref_cache(file_refs);
+	free(file_refs->gitdir);
+	free(file_refs->gitcommondir);
+	free(file_refs->packed_refs_path);
+	file_refs->gitdir = xstrdup(get_git_dir());
+	get_common_dir_noenv(&sb, get_git_dir());
+	file_refs->gitcommondir = strbuf_detach(&sb, NULL);
+	strbuf_addf(&sb, "%s/packed-refs", file_refs->gitcommondir);
+	file_refs->packed_refs_path = strbuf_detach(&sb, NULL);
+}
+
 /* The length of a peeled reference line in packed-refs, including EOL: */
 #define PEELED_LINE_LENGTH 42
 
