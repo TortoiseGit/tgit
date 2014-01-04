@@ -151,6 +151,24 @@ static struct files_ref_store *files_downcast(struct ref_store *ref_store,
 	return refs;
 }
 
+void invalidate_ref_cache(void)
+{
+	struct ref_store *refs;
+	if (!the_repository->refs_private)
+		return;
+	refs = get_main_ref_store(the_repository);
+	if (!refs)
+		return;
+	struct files_ref_store *file_refs = files_downcast(refs, 0, "invalidate_ref_cache");
+	clear_snapshot(file_refs->packed_ref_store);
+	clear_loose_ref_cache(file_refs);
+	free(file_refs->base.gitdir);
+	free(file_refs->gitcommondir);
+	clear_packed_backend_refstore(file_refs->packed_ref_store);
+	free(file_refs->packed_ref_store);
+	FREE_AND_NULL(the_repository->refs_private);
+}
+
 static void files_reflog_path(struct files_ref_store *refs,
 			      struct strbuf *sb,
 			      const char *refname)

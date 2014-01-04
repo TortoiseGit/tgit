@@ -228,6 +228,11 @@ const char *find_descendant_ref(const char *dirname,
 				const struct string_list *extras,
 				const struct string_list *skip);
 
+/*
+ * Invalidate the reference cache for the main module.
+ */
+extern void invalidate_ref_cache(void);
+
 /* We allow "recursive" symbolic refs. Only within reason, though */
 #define SYMREF_MAXDEPTH 5
 
