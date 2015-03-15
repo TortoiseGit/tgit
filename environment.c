@@ -345,3 +345,52 @@ int get_shared_repository(void)
 	}
 	return the_shared_repository;
 }
+
+void reset_git_env(void)
+{
+	putenv("GIT_DIR=");
+	is_bare_repository_cfg = -1;
+	the_shared_repository = PERM_UMASK;
+	need_shared_repository_from_config = 1;
+	if (git_dir)
+	{
+		free(git_dir);
+		git_dir = NULL;
+	}
+	if (git_common_dir)
+	{
+		free(git_common_dir);
+		git_common_dir = NULL;
+	}
+	if (git_object_dir)
+	{
+		free(git_object_dir);
+		git_object_dir = NULL;
+	}
+	if (git_index_file)
+	{
+		free(git_index_file);
+		git_index_file = NULL;
+	}
+	if (git_graft_file)
+	{
+		free(git_graft_file);
+		git_graft_file = NULL;
+	}
+	if (git_graft_file)
+	{
+		free(git_graft_file);
+		git_graft_file = NULL;
+	}
+	git_work_tree_initialized = 0;
+	if (work_tree)
+	{
+		free(work_tree);
+		work_tree = NULL;
+	}
+	if (git_work_tree_cfg)
+	{
+		free(git_work_tree_cfg);
+		git_work_tree_cfg = NULL;
+	}
+}
