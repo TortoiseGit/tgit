@@ -409,3 +409,17 @@ int print_sha1_ellipsis(void)
 	}
 	return cached_result;
 }
+
+void reset_git_env(void)
+{
+	putenv("GIT_DIR=");
+	is_bare_repository_cfg = -1;
+	the_shared_repository = PERM_UMASK;
+	need_shared_repository_from_config = 1;
+	if (the_repository)
+		repo_clear(the_repository);
+	initialize_the_repository();
+	git_work_tree_initialized = 0;
+	free(git_work_tree_cfg);
+	git_work_tree_cfg = NULL;
+}
