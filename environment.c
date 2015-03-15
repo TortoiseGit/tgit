@@ -727,3 +727,15 @@ int git_default_config(const char *var, const char *value,
 	/* Add other config variables here and to Documentation/config.adoc. */
 	return 0;
 }
+
+void reset_git_env(void)
+{
+	putenv("GIT_DIR=");
+	FREE_AND_NULL(comment_line_str_to_free);
+	auto_comment_line_char = 0;
+	is_bare_repository_cfg = -1;
+	if (the_repository && the_repository->objects)
+		repo_clear(the_repository);
+	initialize_repository(the_repository);
+	FREE_AND_NULL(git_work_tree_cfg);
+}
