@@ -247,3 +247,15 @@ int print_sha1_ellipsis(void)
 	}
 	return cached_result;
 }
+
+void reset_git_env(void)
+{
+	putenv("GIT_DIR=");
+	FREE_AND_NULL(comment_line_str_to_free);
+	auto_comment_line_char = 0;
+	is_bare_repository_cfg = -1;
+	if (the_repository && the_repository->objects)
+		repo_clear(the_repository);
+	initialize_repository(the_repository);
+	FREE_AND_NULL(git_work_tree_cfg);
+}
