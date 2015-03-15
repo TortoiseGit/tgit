@@ -368,3 +368,26 @@ void reset_shared_repository(void)
 {
 	need_shared_repository_from_config = 1;
 }
+
+void reset_git_env(void)
+{
+	putenv("GIT_DIR=");
+	is_bare_repository_cfg = -1;
+	the_shared_repository = PERM_UMASK;
+	need_shared_repository_from_config = 1;
+	free(git_dir);
+	git_dir = NULL;
+	free(git_common_dir);
+	git_common_dir = NULL;
+	free(git_object_dir);
+	git_object_dir = NULL;
+	free(git_index_file);
+	git_index_file = NULL;
+	free(git_graft_file);
+	git_graft_file = NULL;
+	git_work_tree_initialized = 0;
+	free(work_tree);
+	work_tree = NULL;
+	free(git_work_tree_cfg);
+	git_work_tree_cfg = NULL;
+}
