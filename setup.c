@@ -2651,3 +2651,11 @@ int init_db(const char *git_dir, const char *real_git_dir,
 	free(original_git_dir);
 	return 0;
 }
+
+void reset_setup(void)
+{
+	git_work_tree_initialized = 0;
+	inside_git_dir = -1;
+	inside_work_tree = -1;
+	work_tree_config_is_bogus = 0;
+}
