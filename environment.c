@@ -246,6 +246,44 @@ const char *get_git_work_tree(void)
 	return work_tree;
 }
 
+void reset_git_env(void)
+{
+	putenv("GIT_DIR=");
+//	putenv("GIT_WORK_TREE=");
+	is_bare_repository_cfg = -1;
+	if (git_dir)
+	{
+		free(git_dir);
+		git_dir = NULL;
+	}
+	if (git_object_dir)
+	{
+		free(git_object_dir);
+		git_object_dir = NULL;
+	}
+	if (git_index_file)
+	{
+		free(git_index_file);
+		git_index_file = NULL;
+	}
+	if (git_graft_file)
+	{
+		free(git_graft_file);
+		git_graft_file = NULL;
+	}
+	if (git_graft_file)
+	{
+		free(git_graft_file);
+		git_graft_file = NULL;
+	}
+	git_work_tree_initialized = 0;
+	if (work_tree)
+	{
+		free(work_tree);
+		work_tree = NULL;
+	}
+}
+
 char *get_object_directory(void)
 {
 	if (!git_object_dir)
