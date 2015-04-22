@@ -478,6 +478,8 @@ char *mingw_query_user_email(void);
 #define query_user_email mingw_query_user_email
 char *mingw_strbuf_realpath(struct strbuf *resolved, const char *path);
 #define platform_strbuf_realpath mingw_strbuf_realpath
+extern const char *program_data_config(void);
+#define git_program_data_config program_data_config
 #if !defined(__MINGW64_VERSION_MAJOR) && (!defined(_MSC_VER) || _MSC_VER < 1800)
 #define PRIuMAX "I64u"
 #define PRId64 "I64d"
