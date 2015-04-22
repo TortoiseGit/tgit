@@ -3708,6 +3708,20 @@ int uname(struct utsname *buf)
 	return 0;
 }
 
+const char *program_data_config(void)
+{
+	static struct strbuf path = STRBUF_INIT;
+	static unsigned initialized;
+
+	if (!initialized) {
+		const char *env = mingw_getenv("PROGRAMDATA");
+		if (env)
+			strbuf_addf(&path, "%s/Git/config", env);
+		initialized = 1;
+	}
+	return *path.buf ? path.buf : NULL;
+}
+
 /*
  * Based on https://stackoverflow.com/questions/43002803
  *
