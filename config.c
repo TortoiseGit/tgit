@@ -1898,10 +1898,15 @@ static int do_git_config_sequence(const struct config_options *opts,
 		repo_config = NULL;
 
 	current_parsing_scope = CONFIG_SCOPE_SYSTEM;
-	if (git_config_system() && system_config &&
-	    !access_or_die(system_config, R_OK,
-			   opts->system_gently ? ACCESS_EACCES_OK : 0))
-		ret += git_config_from_file(fn, system_config, data);
+	if (git_config_system()) {
+		int flags = opts->system_gently ? ACCESS_EACCES_OK : 0;
+		const char *program_data = git_program_data_config();
+
+		if (program_data && !access_or_die(program_data, R_OK, flags))
+			ret += git_config_from_file(fn, program_data, data);
+		if (system_config && !access_or_die(system_config, R_OK, flags))
+			ret += git_config_from_file(fn, system_config, data);
+	}
 
 	current_parsing_scope = CONFIG_SCOPE_GLOBAL;
 	git_global_config(&user_config, &xdg_config);
