@@ -6,6 +6,7 @@
 #include "../strbuf.h"
 #include "../run-command.h"
 #include "../cache.h"
+#include <ShlObj.h>
 
 #define HCAST(type, handle) ((type)(intptr_t)handle)
 
@@ -2365,21 +2366,47 @@ int uname(struct utsname *buf)
 	return 0;
 }
 
+static int is_cygwin_msys2_hack_active(void)
+{
+	HKEY hKey;
+	DWORD dwType = REG_DWORD;
+	DWORD dwValue = 0;
+	DWORD dwSize = sizeof(dwValue);
+	if (RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\TortoiseGit", NULL, KEY_ALL_ACCESS, &hKey) == ERROR_SUCCESS)
+	{
+		RegQueryValueExW(hKey, L"CygwinHack", NULL, &dwType, &dwValue, &dwSize);
+		if (dwValue != 1)
+			RegQueryValueExW(hKey, L"Msys2Hack", NULL, &dwType, (LPBYTE)&dwValue, &dwSize);
+		RegCloseKey(hKey);
+	}
+	return dwValue == 1;
+}
+
 const char *program_data_config(void)
 {
-	static struct strbuf path = STRBUF_INIT;
-	static unsigned initialized;
+	static const char *common_path = NULL;
+	static int initialized = 0;
 
-	if (!initialized) {
-		const char *env = mingw_getenv("PROGRAMDATA");
-		const char *extra = "";
-		if (!env) {
-			env = mingw_getenv("ALLUSERSPROFILE");
-			extra = "/Application Data";
-		}
-		if (env)
-			strbuf_addf(&path, "%s%s/Git/config", env, extra);
+	if (!initialized)
+	{
+		char pointer[MAX_PATH];
+		wchar_t wbuffer[MAX_PATH];
+
 		initialized = 1;
+
+		// do not use shared windows-wide system config when cygwin hack is active
+		if (is_cygwin_msys2_hack_active())
+			return NULL;
+
+		if (SHGetFolderPathW(NULL, CSIDL_COMMON_APPDATA, NULL, SHGFP_TYPE_CURRENT, wbuffer) != S_OK || wcslen(wbuffer) >= MAX_PATH - 11) /* 11 = len("\\Git\\config") */
+			return NULL;
+
+		wcscat(wbuffer, L"\\Git\\config");
+
+		xwcstoutf(pointer, wbuffer, MAX_PATH);
+
+		common_path = xstrdup(pointer);
 	}
-	return *path.buf ? path.buf : NULL;
+
+	return common_path;
 }
