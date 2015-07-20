@@ -56,6 +56,7 @@ static const char* win_common_git_config_path()
 char *system_path(const char *path)
 {
 	static const char *syspath = NULL;
+	static DWORD dwMsys2Hack = 0;
 	static DWORD dwCygwinHack = 0;
 
 	if (is_absolute_path(path))
@@ -99,13 +100,20 @@ char *system_path(const char *path)
 
 				dwType = REG_DWORD;
 				dwSize = sizeof(DWORD);
+				if (RegQueryValueExW(hKey, L"Msys2Hack", NULL, &dwType, (LPBYTE)&dwMsys2Hack, &dwSize) == ERROR_SUCCESS && dwMsys2Hack)
+				{
+					// for Msys2 the system config is in etc folder, but git.exe is in usr/bin - we also need to strip usr
+					const char *oldsyspath = syspath;
+					syspath = strip_path_suffix(oldsyspath, "usr");
+					free(oldsyspath);
+				}
 				RegQueryValueExW(hKey, L"CygwinHack", NULL, &dwType, (LPBYTE)&dwCygwinHack, &dwSize);
 			}
 			RegCloseKey(hKey);
 		}
 	}
 
-	if (!strcmp(path, ETC_GITCONFIG) && !dwCygwinHack)
+	if (!strcmp(path, ETC_GITCONFIG) && !(dwMsys2Hack || dwCygwinHack))
 	{
 		const char* configpath = mkpath("%s\\%s", syspath, path);
 		//if (!access(configpath, F_OK))
