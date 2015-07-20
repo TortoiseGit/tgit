@@ -56,6 +56,7 @@ static const char* win_common_git_config_path()
 char *system_path(const char *path)
 {
 	static const char *syspath = NULL;
+	static DWORD dwCygwinHack = 0;
 
 	if (is_absolute_path(path))
 		return xstrdup(path);
@@ -95,12 +96,16 @@ char *system_path(const char *path)
 						syspath = xstrdup(configpath);
 					}
 				} while (FALSE);
+
+				dwType = REG_DWORD;
+				dwSize = sizeof(DWORD);
+				RegQueryValueExW(hKey, L"CygwinHack", NULL, &dwType, (LPBYTE)&dwCygwinHack, &dwSize);
 			}
 			RegCloseKey(hKey);
 		}
 	}
 
-	if (!strcmp(path, ETC_GITCONFIG))
+	if (!strcmp(path, ETC_GITCONFIG) && !dwCygwinHack)
 	{
 		const char* configpath = mkpath("%s\\%s", syspath, path);
 		//if (!access(configpath, F_OK))
