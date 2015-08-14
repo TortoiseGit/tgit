@@ -62,7 +62,7 @@ int parse_commit_buffer(struct commit *item, const void *buffer, unsigned long s
 int parse_commit_gently(struct commit *item, int quiet_on_missing);
 static inline int parse_commit(struct commit *item)
 {
-	return parse_commit_gently(item, 0);
+	return parse_commit_gently(item, 1);
 }
 void parse_commit_or_die(struct commit *item);
 
