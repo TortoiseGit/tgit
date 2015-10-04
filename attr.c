@@ -541,7 +541,7 @@ static void check_vector_remove(struct attr_check *check)
 }
 
 /* Iterate through all attr_check instances and drop their stacks */
-static void drop_all_attr_stacks(void)
+void drop_all_attr_stacks(void)
 {
 	int i;
 
