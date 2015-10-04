@@ -466,7 +466,7 @@ static void debug_set(const char *what, const char *match, struct git_attr *attr
 #define debug_set(a,b,c,d) do { ; } while (0)
 #endif
 
-static void drop_attr_stack(void)
+void drop_attr_stack(void)
 {
 	while (attr_stack) {
 		struct attr_stack *elem = attr_stack;
