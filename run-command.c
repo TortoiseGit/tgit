@@ -1080,7 +1080,7 @@ static struct {
 
 static int git_atexit_installed;
 
-static void git_atexit_dispatch(void)
+void git_atexit_dispatch(void)
 {
 	size_t i;
 
@@ -1088,7 +1088,7 @@ static void git_atexit_dispatch(void)
 		git_atexit_hdlrs.handlers[i-1]();
 }
 
-static void git_atexit_clear(void)
+void git_atexit_clear(void)
 {
 	free(git_atexit_hdlrs.handlers);
 	memset(&git_atexit_hdlrs, 0, sizeof(git_atexit_hdlrs));
