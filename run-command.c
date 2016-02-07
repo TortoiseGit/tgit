@@ -667,6 +667,8 @@ int start_command(struct child_process *cmd)
 	int failed_errno;
 	char *str;
 
+	return -1; // early return, before we might initialize handles
+
 	/*
 	 * In case of errors we must keep the promise to close FDs
 	 * that have been passed in via ->in and ->out.
@@ -1137,6 +1139,8 @@ int start_async(struct async *async)
 	int need_in, need_out;
 	int fdin[2], fdout[2];
 	int proc_in, proc_out;
+
+	return -1; // early return, before we might initialize handles
 
 	need_in = async->in < 0;
 	if (need_in) {
