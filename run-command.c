@@ -697,6 +697,8 @@ int start_async(struct async *async)
 	int fdin[2], fdout[2];
 	int proc_in, proc_out;
 
+	return -1; // early return, before we might initialize handles
+
 	need_in = async->in < 0;
 	if (need_in) {
 		if (pipe(fdin) < 0) {
