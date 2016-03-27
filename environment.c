@@ -730,7 +730,7 @@ int git_default_config(const char *var, const char *value,
 
 void reset_git_env(void)
 {
-	putenv("GIT_DIR=");
+	build_libgit_environment(); // this resets all environment variables
 	FREE_AND_NULL(comment_line_str_to_free);
 	auto_comment_line_char = 0;
 	is_bare_repository_cfg = -1;
