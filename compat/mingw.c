@@ -1146,6 +1146,8 @@ static int environ_size = 0;
 /* allocated size of environ array, in bytes */
 static int environ_alloc = 0;
 
+static char** libgit_environ;
+
 /*
  * Create environment block suitable for CreateProcess. Merges current
  * process environment and the supplied environment changes.
@@ -1161,7 +1163,8 @@ static wchar_t *make_environment_block(char **deltaenv)
 
 	/* copy the environment, leaving space for changes */
 	ALLOC_ARRAY(tmpenv, size + i);
-	memcpy(tmpenv, environ, size * sizeof(char*));
+	if (!libgit_environ) build_libgit_environment();
+	memcpy(tmpenv, libgit_environ, size * sizeof(char*));
 
 	/* merge supplied environment changes into the temporary environment */
 	for (i = 0; deltaenv && deltaenv[i]; i++)
@@ -1475,7 +1478,9 @@ static int do_putenv(char **env, const char *name, int size, int free_old)
 	if (i >= 0 && free_old)
 		free(env[i]);
 
-	if (strchr(name, '=')) {
+	// if name ends with "=" we know we want to unset
+	char* set = strchr(name, '=');
+	if (set && *(set + 1)) {
 		/* if new value ('key=value') is specified, insert or replace entry */
 		if (i < 0) {
 			i = ~i;
@@ -1494,17 +1499,19 @@ static int do_putenv(char **env, const char *name, int size, int free_old)
 char *mingw_getenv(const char *name)
 {
 	char *value;
-	int pos = bsearchenv(environ, name, environ_size - 1);
+	if (!libgit_environ) build_libgit_environment();
+	int pos = bsearchenv(libgit_environ, name, environ_size - 1);
 	if (pos < 0)
 		return NULL;
-	value = strchr(environ[pos], '=');
+	value = strchr(libgit_environ[pos], '=');
 	return value ? &value[1] : NULL;
 }
 
 int mingw_putenv(const char *namevalue)
 {
-	ALLOC_GROW(environ, (environ_size + 1) * sizeof(char*), environ_alloc);
-	environ_size = do_putenv(environ, namevalue, environ_size, 1);
+	if (!libgit_environ) build_libgit_environment();
+	ALLOC_GROW(libgit_environ, (environ_size + 1) * sizeof(char*), environ_alloc);
+	environ_size = do_putenv(libgit_environ, namevalue, environ_size, 1);
 	return 0;
 }
 
@@ -2254,36 +2261,13 @@ static void setup_windows_environment(void)
 		 */
 		convert_slashes(tmp);
 	}
-
-	/* simulate TERM to enable auto-color (see color.c) */
-	if (!getenv("TERM"))
-		setenv("TERM", "cygwin", 1);
-}
-
-/*
- * Disable MSVCRT command line wildcard expansion (__getmainargs called from
- * mingw startup code, see init.c in mingw runtime).
- */
-int _CRT_glob = 0;
-
-typedef struct {
-	int newmode;
-} _startupinfo;
-
-extern int __wgetmainargs(int *argc, wchar_t ***argv, wchar_t ***env, int glob,
-		_startupinfo *si);
-
-static NORETURN void die_startup(void)
-{
-	fputs("fatal: not enough memory for initialization", stderr);
-	exit(128);
 }
 
 static void *malloc_startup(size_t size)
 {
 	void *result = malloc(size);
 	if (!result)
-		die_startup();
+		die("startup");
 	return result;
 }
 
@@ -2293,24 +2277,31 @@ static char *wcstoutfdup_startup(char *buffer, const wchar_t *wcs, size_t len)
 	return memcpy(malloc_startup(len), buffer, len);
 }
 
-void mingw_startup(void)
+void build_libgit_environment(void)
 {
-	int i, maxlen, argc;
+	int i, maxlen;
 	char *buffer;
-	wchar_t **wenv, **wargv;
-	_startupinfo si;
+	wchar_t *wenv;
 
-	/* get wide char arguments and environment */
-	si.newmode = 0;
-	if (__wgetmainargs(&argc, &wargv, &wenv, _CRT_glob, &si) < 0)
-		die_startup();
+	/* cleanup old environment */
+	if (libgit_environ)
+	{
+		for (i = 0; libgit_environ[i]; ++i)
+			free(libgit_environ[i]);
+		free(libgit_environ);
+	}
+
+	wenv = GetEnvironmentStringsW();
+	maxlen = 0;
+	i = 0;
 
 	/* determine size of argv and environ conversion buffer */
-	maxlen = wcslen(_wpgmptr);
-	for (i = 1; i < argc; i++)
-		maxlen = max(maxlen, wcslen(wargv[i]));
-	for (i = 0; wenv[i]; i++)
-		maxlen = max(maxlen, wcslen(wenv[i]));
+	for (int pos = 0; wenv && wenv[pos] && wenv[pos + 1]; ++i)
+	{
+		int len = wcslen(wenv + pos);
+		maxlen = max(maxlen, len);
+		pos += len + 1;
+	}
 
 	/*
 	 * nedmalloc can't free CRT memory, allocate resizable environment
@@ -2319,38 +2310,31 @@ void mingw_startup(void)
 	 */
 	environ_size = i + 1;
 	environ_alloc = alloc_nr(environ_size * sizeof(char*));
-	environ = malloc_startup(environ_alloc);
+	libgit_environ = malloc_startup(environ_alloc);
 
 	/* allocate buffer (wchar_t encodes to max 3 UTF-8 bytes) */
 	maxlen = 3 * maxlen + 1;
 	buffer = malloc_startup(maxlen);
 
-	/* convert command line arguments and environment to UTF-8 */
-	__argv[0] = wcstoutfdup_startup(buffer, _wpgmptr, maxlen);
-	for (i = 1; i < argc; i++)
-		__argv[i] = wcstoutfdup_startup(buffer, wargv[i], maxlen);
-	for (i = 0; wenv[i]; i++)
-		environ[i] = wcstoutfdup_startup(buffer, wenv[i], maxlen);
-	environ[i] = NULL;
+	/* convert environment to UTF-8 */
+	i = 0;
+	for (int pos = 0; wenv && wenv[pos] && wenv[pos + 1]; ++i)
+	{
+		int len = wcslen(wenv + pos);
+		libgit_environ[i] = wcstoutfdup_startup(buffer, wenv + pos, maxlen);
+		pos += len + 1;
+	}
+	libgit_environ[i] = NULL;
 	free(buffer);
 
+	FreeEnvironmentStringsW(wenv);
+
 	/* sort environment for O(log n) getenv / putenv */
-	qsort(environ, i, sizeof(char*), compareenv);
+	qsort(libgit_environ, i, sizeof(char*), compareenv);
 
 	/* fix Windows specific environment settings */
 	setup_windows_environment();
 
-	/* initialize critical section for waitpid pinfo_t list */
-	InitializeCriticalSection(&pinfo_cs);
-
-	/* set up default file mode and file modes for stdin/out/err */
-	_fmode = _O_BINARY;
-	_setmode(_fileno(stdin), _O_BINARY);
-	_setmode(_fileno(stdout), _O_BINARY);
-	_setmode(_fileno(stderr), _O_BINARY);
-
-	/* initialize Unicode console */
-	winansi_init();
 }
 
 int uname(struct utsname *buf)
