@@ -267,7 +267,7 @@ char *mingw_getcwd(char *pointer, int len);
 #error "NO_UNSETENV is incompatible with the MinGW startup code!"
 #endif
 
-#if defined(_MSC_VER)
+#if 0
 /*
  * We bind *env() routines (even the mingw_ ones) to private msc_ versions.
  * These talk to the CRT using UNICODE/wchar_t, but maintain the original
@@ -516,6 +516,7 @@ int mingw_offset_1st_component(const char *path);
 #define PATH_SEP ';'
 extern char *mingw_query_user_email(void);
 #define query_user_email mingw_query_user_email
+extern void build_libgit_environment(void);
 extern const char *program_data_config(void);
 #define git_program_data_config program_data_config
 #if !defined(__MINGW64_VERSION_MAJOR) && (!defined(_MSC_VER) || _MSC_VER < 1800)
