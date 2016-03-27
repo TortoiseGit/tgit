@@ -1626,90 +1626,49 @@ static int wenvcmp(const void *a, const void *b)
 #include "qsort.c"
 #endif
 
+static int do_putenv(char **env, const char *name, int size, int free_old);
+
+/* used number of elements of environ array, including terminating NULL */
+static int environ_size = 0;
+/* allocated size of environ array, in bytes */
+static int environ_alloc = 0;
+static char **libgit_environ;
+
 /*
- * Build an environment block combining the inherited environment
- * merged with the given list of settings.
- *
- * Values of the form "KEY=VALUE" in deltaenv override inherited values.
- * Values of the form "KEY" in deltaenv delete inherited values.
- *
- * Multiple entries in deltaenv for the same key are explicitly allowed.
- *
- * We return a contiguous block of UNICODE strings with a final trailing
- * zero word.
+ * Create environment block suitable for CreateProcess. Merges current
+ * process environment and the supplied environment changes.
  */
 static wchar_t *make_environment_block(char **deltaenv)
 {
-	wchar_t *wenv = GetEnvironmentStringsW(), *wdeltaenv, *result, *p;
-	size_t wlen, s, delta_size, size;
+	wchar_t *wenvblk = NULL;
+	char **tmpenv;
+	int i = 0, size, wenvsz = 0, wenvpos = 0;
 
-	wchar_t **array = NULL;
-	size_t alloc = 0, nr = 0, i;
+	size = environ_size;
 
-	size = 1; /* for extra NUL at the end */
+	while (deltaenv && deltaenv[i] && *deltaenv[i])
+		i++;
 
-	/* If there is no deltaenv to apply, simply return a copy. */
-	if (!deltaenv || !*deltaenv) {
-		for (p = wenv; p && *p; ) {
-			size_t s = wcslen(p) + 1;
-			size += s;
-			p += s;
-		}
+	/* copy the environment, leaving space for changes */
+	ALLOC_ARRAY(tmpenv, size + i);
+	if (!libgit_environ)
+		build_libgit_environment();
+	memcpy(tmpenv, libgit_environ, size * sizeof(char *));
 
-		ALLOC_ARRAY(result, size);
-		memcpy(result, wenv, size * sizeof(*wenv));
-		FreeEnvironmentStringsW(wenv);
-		return result;
+	/* merge supplied environment changes into the temporary environment */
+	for (i = 0; deltaenv && deltaenv[i] && *deltaenv[i]; i++)
+		size = do_putenv(tmpenv, deltaenv[i], size, 0);
+
+	/* create environment block from temporary environment */
+	for (i = 0; tmpenv[i] && *tmpenv[i]; i++) {
+		size = 2 * strlen(tmpenv[i]) + 2; /* +2 for final \0 */
+		ALLOC_GROW(wenvblk, (wenvpos + size) * sizeof(wchar_t), wenvsz);
+		wenvpos += xutftowcs(&wenvblk[wenvpos], tmpenv[i], size) + 1;
 	}
-
-	/*
-	 * If there is a deltaenv, let's accumulate all keys into `array`,
-	 * sort them using the stable git_qsort() and then copy, skipping
-	 * duplicate keys
-	 */
-	for (p = wenv; p && *p; ) {
-		ALLOC_GROW(array, nr + 1, alloc);
-		s = wcslen(p) + 1;
-		array[nr++] = p;
-		p += s;
-		size += s;
-	}
-
-	/* (over-)assess size needed for wchar version of deltaenv */
-	for (delta_size = 0, i = 0; deltaenv[i]; i++)
-		delta_size += strlen(deltaenv[i]) * 2 + 1;
-	ALLOC_ARRAY(wdeltaenv, delta_size);
-
-	/* convert the deltaenv, appending to array */
-	for (i = 0, p = wdeltaenv; deltaenv[i]; i++) {
-		ALLOC_GROW(array, nr + 1, alloc);
-		wlen = xutftowcs(p, deltaenv[i], wdeltaenv + delta_size - p);
-		array[nr++] = p;
-		p += wlen + 1;
-	}
-
-	git_qsort(array, nr, sizeof(*array), wenvcmp);
-	ALLOC_ARRAY(result, size + delta_size);
-
-	for (p = result, i = 0; i < nr; i++) {
-		/* Skip any duplicate keys; last one wins */
-		while (i + 1 < nr && !wenvcmp(array + i, array + i + 1))
-		       i++;
-
-		/* Skip "to delete" entry */
-		if (!wcschr(array[i], L'='))
-			continue;
-
-		size = wcslen(array[i]) + 1;
-		memcpy(p, array[i], size * sizeof(*p));
-		p += size;
-	}
-	*p = L'\0';
-
-	free(array);
-	free(wdeltaenv);
-	FreeEnvironmentStringsW(wenv);
-	return result;
+	/* add final \0 terminator */
+	wenvblk[wenvpos] = 0;
+	free(tmpenv);
+	return wenvblk;
 }
 
 static void do_unset_environment_variables(void)
@@ -2161,83 +2120,93 @@ int mingw_kill(pid_t pid, int sig)
 }
 
 /*
- * UTF-8 versions of getenv(), putenv() and unsetenv().
- * Internally, they use the CRT's stock UNICODE routines
- * to avoid data loss.
+ * Compare environment entries by key (i.e. stopping at '=' or '\0').
  */
+static int compareenv(const void *v1, const void *v2)
+{
+	const char *e1 = *(const char**)v1;
+	const char *e2 = *(const char**)v2;
+
+	for (;;) {
+		int c1 = *e1++;
+		int c2 = *e2++;
+		c1 = (c1 == '=') ? 0 : tolower(c1);
+		c2 = (c2 == '=') ? 0 : tolower(c2);
+		if (c1 > c2)
+			return 1;
+		if (c1 < c2)
+			return -1;
+		if (c1 == 0)
+			return 0;
+	}
+}
+
+static int bsearchenv(char **env, const char *name, size_t size)
+{
+	unsigned low = 0, high = size;
+	while (low < high) {
+		unsigned mid = low + ((high - low) >> 1);
+		int cmp = compareenv(&env[mid], &name);
+		if (cmp < 0)
+			low = mid + 1;
+		else if (cmp > 0)
+			high = mid;
+		else
+			return mid;
+	}
+	return ~low; /* not found, return 1's complement of insert position */
+}
+
+/*
+ * If name contains '=', then sets the variable, otherwise it unsets it
+ * Size includes the terminating NULL. Env must have room for size + 1 entries
+ * (in case of insert). Returns the new size. Optionally frees removed entries.
+ */
+static int do_putenv(char **env, const char *name, int size, int free_old)
+{
+	int i = size <= 0 ? -1 : bsearchenv(env, name, size - 1);
+
+	/* optionally free removed / replaced entry */
+	if (i >= 0 && free_old)
+		free(env[i]);
+
+	// if name ends with "=" we know we want to unset
+	char *set = strchr(name, '=');
+	if (set && *(set + 1)) {
+		/* if new value ('key=value') is specified, insert or replace entry */
+		if (i < 0) {
+			i = ~i;
+			memmove(&env[i + 1], &env[i], (size - i) * sizeof(char*));
+			size++;
+		}
+		env[i] = (char*) name;
+	} else if (i >= 0) {
+		/* otherwise ('key') remove existing entry */
+		size--;
+		memmove(&env[i], &env[i + 1], (size - i) * sizeof(char*));
+	}
+	return size;
+}
+
 char *mingw_getenv(const char *name)
 {
-#define GETENV_MAX_RETAIN 64
-	static char *values[GETENV_MAX_RETAIN];
-	static int value_counter;
-	int len_key, len_value;
-	wchar_t *w_key;
 	char *value;
-	wchar_t w_value[32768];
-
-	if (!name || !*name)
+	if (!libgit_environ)
+		build_libgit_environment();
+	int pos = bsearchenv(libgit_environ, name, environ_size - 1);
+	if (pos < 0)
 		return NULL;
-
-	len_key = strlen(name) + 1;
-	/* We cannot use xcalloc() here because that uses getenv() itself */
-	w_key = calloc(len_key, sizeof(wchar_t));
-	if (!w_key)
-		die("Out of memory, (tried to allocate %u wchar_t's)", len_key);
-	xutftowcs(w_key, name, len_key);
-	len_value = GetEnvironmentVariableW(w_key, w_value, ARRAY_SIZE(w_value));
-	if (!len_value && GetLastError() == ERROR_ENVVAR_NOT_FOUND) {
-		free(w_key);
-		return NULL;
-	}
-	free(w_key);
-
-	len_value = len_value * 3 + 1;
-	/* We cannot use xcalloc() here because that uses getenv() itself */
-	value = calloc(len_value, sizeof(char));
-	if (!value)
-		die("Out of memory, (tried to allocate %u bytes)", len_value);
-	xwcstoutf(value, w_value, len_value);
-
-	/*
-	 * We return `value` which is an allocated value and the caller is NOT
-	 * expecting to have to free it, so we keep a round-robin array,
-	 * invalidating the buffer after GETENV_MAX_RETAIN getenv() calls.
-	 */
-	free(values[value_counter]);
-	values[value_counter++] = value;
-	if (value_counter >= ARRAY_SIZE(values))
-		value_counter = 0;
-
-	return value;
+	value = strchr(libgit_environ[pos], '=');
+	return value ? &value[1] : NULL;
 }
 
 int mingw_putenv(const char *namevalue)
 {
-	int size;
-	wchar_t *wide, *equal;
-	BOOL result;
-
-	if (!namevalue || !*namevalue)
-		return 0;
-
-	size = strlen(namevalue) * 2 + 1;
-	wide = calloc(size, sizeof(wchar_t));
-	if (!wide)
-		die("Out of memory, (tried to allocate %u wchar_t's)", size);
-	xutftowcs(wide, namevalue, size);
-	equal = wcschr(wide, L'=');
-	if (!equal)
-		result = SetEnvironmentVariableW(wide, NULL);
-	else {
-		*equal = L'\0';
-		result = SetEnvironmentVariableW(wide, equal + 1);
-	}
-	free(wide);
-
-	if (!result)
-		errno = err_win_to_posix(GetLastError());
-
-	return result ? 0 : -1;
+	if (!libgit_environ)
+		build_libgit_environment();
+	ALLOC_GROW(libgit_environ, (environ_size + 1) * sizeof(char*), environ_alloc);
+	environ_size = do_putenv(libgit_environ, namevalue, environ_size, 1);
+	return 0;
 }
 
 static void ensure_socket_initialization(void)
@@ -3015,10 +2984,6 @@ static void setup_windows_environment(void)
 		convert_slashes(tmp);
 	}
 
-	/* simulate TERM to enable auto-color (see color.c) */
-	if (!getenv("TERM"))
-		setenv("TERM", "cygwin", 1);
-
 	/* calculate HOME if not set */
 	if (!getenv("HOME")) {
 		/*
@@ -3146,62 +3111,6 @@ static char *wcstoutfdup_startup(char *buffer, const wchar_t *wcs, size_t len)
 	return memcpy(malloc_startup(len), buffer, len);
 }
 
-static void maybe_redirect_std_handle(const wchar_t *key, DWORD std_id, int fd,
-				      DWORD desired_access, DWORD flags)
-{
-	DWORD create_flag = fd ? OPEN_ALWAYS : OPEN_EXISTING;
-	wchar_t buf[MAX_PATH];
-	DWORD max = ARRAY_SIZE(buf);
-	HANDLE handle;
-	DWORD ret = GetEnvironmentVariableW(key, buf, max);
-
-	if (!ret || ret >= max)
-		return;
-
-	/* make sure this does not leak into child processes */
-	SetEnvironmentVariableW(key, NULL);
-	if (!wcscmp(buf, L"off")) {
-		close(fd);
-		handle = GetStdHandle(std_id);
-		if (handle != INVALID_HANDLE_VALUE)
-			CloseHandle(handle);
-		return;
-	}
-	if (std_id == STD_ERROR_HANDLE && !wcscmp(buf, L"2>&1")) {
-		handle = GetStdHandle(STD_OUTPUT_HANDLE);
-		if (handle == INVALID_HANDLE_VALUE) {
-			close(fd);
-			handle = GetStdHandle(std_id);
-			if (handle != INVALID_HANDLE_VALUE)
-				CloseHandle(handle);
-		} else {
-			int new_fd = _open_osfhandle((intptr_t)handle, O_BINARY);
-			SetStdHandle(std_id, handle);
-			dup2(new_fd, fd);
-			/* do *not* close the new_fd: that would close stdout */
-		}
-		return;
-	}
-	handle = CreateFileW(buf, desired_access, 0, NULL, create_flag,
-			     flags, NULL);
-	if (handle != INVALID_HANDLE_VALUE) {
-		int new_fd = _open_osfhandle((intptr_t)handle, O_BINARY);
-		SetStdHandle(std_id, handle);
-		dup2(new_fd, fd);
-		close(new_fd);
-	}
-}
-
-static void maybe_redirect_std_handles(void)
-{
-	maybe_redirect_std_handle(L"GIT_REDIRECT_STDIN", STD_INPUT_HANDLE, 0,
-				  GENERIC_READ, FILE_ATTRIBUTE_NORMAL);
-	maybe_redirect_std_handle(L"GIT_REDIRECT_STDOUT", STD_OUTPUT_HANDLE, 1,
-				  GENERIC_WRITE, FILE_ATTRIBUTE_NORMAL);
-	maybe_redirect_std_handle(L"GIT_REDIRECT_STDERR", STD_ERROR_HANDLE, 2,
-				  GENERIC_WRITE, FILE_FLAG_NO_BUFFERING);
-}
-
 static void adjust_symlink_flags(void)
 {
 	/*
@@ -3227,97 +3136,65 @@ static BOOL WINAPI handle_ctrl_c(DWORD ctrl_type)
 	return TRUE; /* we did handle this */
 }
 
-#ifdef _MSC_VER
-#ifdef _DEBUG
-#include <crtdbg.h>
-#endif
-#endif
-
-/*
- * We implement wmain() and compile with -municode, which would
- * normally ignore main(), but we call the latter from the former
- * so that we can handle non-ASCII command-line parameters
- * appropriately.
- *
- * To be more compatible with the core git code, we convert
- * argv into UTF8 and pass them directly to main().
- */
-int wmain(int argc, const wchar_t **wargv)
+void build_libgit_environment(void)
 {
-	int i, maxlen, exit_status;
-	char *buffer, **save;
-	const char **argv;
+	int i, maxlen;
+	char *buffer;
+	wchar_t *wenv;
 
-#ifdef _MSC_VER
-#ifdef _DEBUG
-	_CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_DEBUG);
-#endif
+	/* cleanup old environment */
+	if (libgit_environ) {
+		for (i = 0; libgit_environ[i]; ++i)
+			free(libgit_environ[i]);
+		free(libgit_environ);
+	}
 
-#ifdef USE_MSVC_CRTDBG
-	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
-#endif
-#endif
-
-	SetConsoleCtrlHandler(handle_ctrl_c, TRUE);
-
-	maybe_redirect_std_handles();
-	adjust_symlink_flags();
-	fsync_object_files = 1;
+	wenv = GetEnvironmentStringsW();
+	maxlen = 0;
+	i = 0;
 
 	/* determine size of argv and environ conversion buffer */
-	maxlen = wcslen(wargv[0]);
-	for (i = 1; i < argc; i++)
-		maxlen = max(maxlen, wcslen(wargv[i]));
+	for (int pos = 0; wenv && wenv[pos] && wenv[pos + 1]; ++i) {
+		int len = wcslen(wenv + pos);
+		maxlen = max(maxlen, len);
+		pos += len + 1;
+	}
+
+	/*
+	 * nedmalloc can't free CRT memory, allocate resizable environment
+	 * list. Note that xmalloc / xmemdupz etc. call getenv, so we cannot
+	 * use it while initializing the environment itself.
+	 */
+	environ_size = i + 1;
+	environ_alloc = alloc_nr(environ_size * sizeof(char*));
+	libgit_environ = malloc_startup(environ_alloc);
 
 	/* allocate buffer (wchar_t encodes to max 3 UTF-8 bytes) */
 	maxlen = 3 * maxlen + 1;
 	buffer = malloc_startup(maxlen);
 
-	/*
-	 * Create a UTF-8 version of w_argv. Also create a "save" copy
-	 * to remember all the string pointers because parse_options()
-	 * will remove claimed items from the argv that we pass down.
-	 */
-	ALLOC_ARRAY(argv, argc + 1);
-	ALLOC_ARRAY(save, argc + 1);
-	for (i = 0; i < argc; i++)
-		argv[i] = save[i] = wcstoutfdup_startup(buffer, wargv[i], maxlen);
-	argv[i] = save[i] = NULL;
+	/* convert environment to UTF-8 */
+	i = 0;
+	for (int pos = 0; wenv && wenv[pos] && wenv[pos + 1]; ++i) {
+		int len = wcslen(wenv + pos);
+		libgit_environ[i] = wcstoutfdup_startup(buffer, wenv + pos, maxlen);
+		pos += len + 1;
+	}
+	libgit_environ[i] = NULL;
 	free(buffer);
+
+	FreeEnvironmentStringsW(wenv);
+
+	/* sort environment for O(log n) getenv / putenv */
+	qsort(libgit_environ, i, sizeof(char*), compareenv);
 
 	/* fix Windows specific environment settings */
 	setup_windows_environment();
 
 	unset_environment_variables = xstrdup("PERL5LIB");
 
-	/* initialize critical section for waitpid pinfo_t list */
-	InitializeCriticalSection(&pinfo_cs);
-	InitializeCriticalSection(&phantom_symlinks_cs);
-
-	/* initialize critical section for fscache */
-	InitializeCriticalSection(&fscache_cs);
-
-	/* set up default file mode and file modes for stdin/out/err */
-	_fmode = _O_BINARY;
-	_setmode(_fileno(stdin), _O_BINARY);
-	_setmode(_fileno(stdout), _O_BINARY);
-	_setmode(_fileno(stderr), _O_BINARY);
-
-	/* initialize Unicode console */
-	winansi_init();
-
 	/* init length of current directory for handle_long_path */
 	current_directory_len = GetCurrentDirectoryW(0, NULL);
-
-	/* invoke the real main() using our utf8 version of argv. */
-	exit_status = main(argc, argv);
-
-	for (i = 0; i < argc; i++)
-		free(save[i]);
-	free(save);
-	free(argv);
-
-	return exit_status;
 }
 
 int uname(struct utsname *buf)
