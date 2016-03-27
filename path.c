@@ -632,9 +632,6 @@ char *expand_user_path(const char *path)
 				strbuf_addf(&user_path, "%s%s", homedrive, homepath);
 			} else
 				strbuf_add(&user_path, home, strlen(home));
-			free(home); // we know, that getenv returns a freeable buffer in TGit libgit
-			free(homedrive);
-			free(homepath);
 #ifdef GIT_WINDOWS_NATIVE
 			convert_slashes(user_path.buf);
 #endif
@@ -1240,27 +1237,17 @@ char *xdg_config_home(const char *filename)
 	assert(filename);
 	config_home = getenv("XDG_CONFIG_HOME");
 	if (config_home && *config_home)
-	{
-		const char* ret = mkpathdup("%s/git/%s", config_home, filename);
-		free(config_home); // we know, that getenv returns a freeable buffer in TGit libgit
-		return ret;
-	}
+		return mkpathdup("%s/git/%s", config_home, filename);
 
 	home = getenv("HOME");
 	if (home)
-	{
-		const char* ret = mkpathdup("%s/.config/git/%s", home, filename);
-		free(home); // we know, that getenv returns a freeable buffer in TGit libgit
-		return ret;
-	}
+		return mkpathdup("%s/.config/git/%s", home, filename);
 
 	homedrive = getenv("HOMEDRIVE");
 	homepath = getenv("HOMEPATH");
 	if (homedrive && homepath)
 	{
 		char* ret = mkpathdup("%s%s/.config/git/%s", homedrive, homepath, filename);
-		free(homedrive); // we know, that getenv returns a freeable buffer in TGit libgit
-		free(homepath);
 #ifdef GIT_WINDOWS_NATIVE
 			convert_slashes(ret);
 #endif

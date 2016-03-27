@@ -348,7 +348,7 @@ int get_shared_repository(void)
 
 void reset_git_env(void)
 {
-	putenv("GIT_DIR=");
+	build_libgit_environment(); // this resets all environment variables
 	is_bare_repository_cfg = -1;
 	the_shared_repository = PERM_UMASK;
 	need_shared_repository_from_config = 1;
