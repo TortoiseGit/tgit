@@ -1225,9 +1225,9 @@ static pid_t mingw_spawnve_fd(const char *cmd, const char **argv, char **deltaen
 	memset(&si, 0, sizeof(si));
 	si.cb = sizeof(si);
 	si.dwFlags = STARTF_USESTDHANDLES;
-	si.hStdInput = winansi_get_osfhandle(fhin);
-	si.hStdOutput = winansi_get_osfhandle(fhout);
-	si.hStdError = winansi_get_osfhandle(fherr);
+	si.hStdInput = (HANDLE) _get_osfhandle(fhin);
+	si.hStdOutput = (HANDLE) _get_osfhandle(fhout);
+	si.hStdError = (HANDLE) _get_osfhandle(fherr);
 
 	if (xutftowcs_canonical_path(wcmd, cmd) < 0)
 		return -1;
