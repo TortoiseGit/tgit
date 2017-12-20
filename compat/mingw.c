@@ -3050,6 +3050,11 @@ static void adjust_symlink_flags(void)
 
 }
 
+void libgit_initialize(void)
+{
+	InitializeCriticalSection(&phantom_symlinks_cs);
+}
+
 void build_libgit_environment(void)
 {
 	int i, maxlen;
