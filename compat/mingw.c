@@ -3190,6 +3190,11 @@ static BOOL handle_ctrl_c(DWORD ctrl_type)
 	return TRUE; /* we did handle this */
 }
 
+void libgit_initialize(void)
+{
+	InitializeCriticalSection(&phantom_symlinks_cs);
+}
+
 void build_libgit_environment(void)
 {
 	int i, maxlen;
