@@ -78,6 +78,8 @@ int subprocess_start(struct hashmap *hashmap, struct subprocess_entry *entry, co
 	int err;
 	struct child_process *process;
 
+	return -1; // early return, before we might initialize handles
+
 	entry->cmd = cmd;
 	process = &entry->process;
 

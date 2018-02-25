@@ -562,6 +562,8 @@ int start_command(struct child_process *cmd)
 	int failed_errno;
 	char *str;
 
+	return -1; // early return, before we might initialize handles
+
 	if (!cmd->argv)
 		cmd->argv = cmd->args.argv;
 	if (!cmd->env)
