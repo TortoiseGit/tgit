@@ -1046,6 +1046,7 @@ int mingw_lstat(const char *file_name, struct stat *buf)
 	}
 
 	if (GetFileAttributesExW(wfilename, GetFileExInfoStandard, &fdata)) {
+		findbuf.dwReserved0 = 0;
 		/* for reparse points, use FindFirstFile to get the reparse tag */
 		if (fdata.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) {
 			HANDLE handle = FindFirstFileW(wfilename, &findbuf);
