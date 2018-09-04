@@ -76,6 +76,18 @@ int chdir_notify(const char *new_cwd)
 	return 0;
 }
 
+void cleanup_chdir_notify(void)
+{
+	struct list_head *pos;
+	struct list_head *p;
+	list_for_each_safe(pos, p, &chdir_notify_entries)
+	{
+		struct chdir_notify_entry *e = list_entry(pos, struct chdir_notify_entry, list);
+		free(e);
+	}
+	INIT_LIST_HEAD(&chdir_notify_entries);
+}
+
 char *reparent_relative_path(const char *old_cwd,
 			     const char *new_cwd,
 			     const char *path)
