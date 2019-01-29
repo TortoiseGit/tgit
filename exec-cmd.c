@@ -57,20 +57,23 @@ static const char *system_prefix(void)
 					syspath = strip_path_suffix(pointer, GIT_EXEC_PATH);
 
 				do {
-					char *configpath;
+					const char *configpath;
 #ifdef _WIN64
-					configpath = mkpath("%s\\mingw64", syspath);
+					configpath = mkpathdup("%s\\mingw64", syspath);
 					if (!access(configpath, F_OK)) {
 						free(syspath);
-						syspath = xstrdup(configpath);
+						syspath = configpath;
 						break;
 					}
+					free(configpath);
 #endif
-					configpath = mkpath("%s\\mingw32", syspath);
+					configpath = mkpathdup("%s\\mingw32", syspath);
 					if (!access(configpath, F_OK)) {
 						free(syspath);
-						syspath = xstrdup(configpath);
+						syspath = configpath;
+						break;
 					}
+					free(configpath);
 				} while (FALSE);
 
 				dwType = REG_DWORD;
