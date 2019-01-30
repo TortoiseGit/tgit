@@ -217,6 +217,7 @@ int BUG_exit_code;
 static NORETURN void BUG_vfl(const char *file, int line, const char *fmt, va_list params)
 {
 	char prefix[256];
+	char buf[2048];
 
 	/* truncation via snprintf is OK here */
 	if (file)
@@ -224,10 +225,9 @@ static NORETURN void BUG_vfl(const char *file, int line, const char *fmt, va_lis
 	else
 		snprintf(prefix, sizeof(prefix), "BUG: ");
 
-	vreportf(prefix, fmt, params);
-	if (BUG_exit_code)
-		exit(BUG_exit_code);
-	abort();
+	snprintf(buf, sizeof(buf), fmt, params);
+
+	die("%s\nPlease report this issue on https://tortoisegit.org/issues/\n%s", prefix, buf);
 }
 
 #ifdef HAVE_VARIADIC_MACROS
