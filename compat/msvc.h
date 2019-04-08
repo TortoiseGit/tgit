@@ -37,8 +37,6 @@ typedef int sigset_t;
 #include "mingw.h"
 
 /* Git runtime infomation */
-#define SHA1_HEADER "block-sha1\\sha1.h"
-
 #define ETC_GITCONFIG "etc\\gitconfig"
 #define ETC_GITATTRIBUTES "etc\\gitattributes"
 #define GIT_EXEC_PATH "bin"
