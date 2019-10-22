@@ -1662,9 +1662,12 @@ static int git_config_from_blob_ref(config_fn_t fn,
 
 const char *git_etc_gitconfig(void)
 {
-	static char *system_wide;
+	static const char *system_wide;
 	if (!system_wide) {
-		system_wide = system_path(ETC_GITCONFIG);
+		if (is_new_git_with_new_location() && !is_cygwin_msys2_hack_active())
+			system_wide = system_path("..\\" ETC_GITCONFIG);
+		else
+			system_wide = system_path(ETC_GITCONFIG);
 		normalize_path_copy(system_wide, system_wide);
 	}
 	return system_wide;

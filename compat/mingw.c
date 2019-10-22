@@ -3661,7 +3661,7 @@ int uname(struct utsname *buf)
 	return 0;
 }
 
-static int is_cygwin_msys2_hack_active(void)
+int is_cygwin_msys2_hack_active(void)
 {
 	HKEY hKey;
 	DWORD dwType = REG_DWORD;
@@ -3675,6 +3675,20 @@ static int is_cygwin_msys2_hack_active(void)
 		RegCloseKey(hKey);
 	}
 	return dwValue == 1;
+}
+
+int is_new_git_with_new_location(void)
+{
+	HKEY hKey;
+	DWORD dwValue = 0;
+	if (RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\TortoiseGit", 0, KEY_ALL_ACCESS, &hKey) == ERROR_SUCCESS)
+	{
+		DWORD dwType = REG_DWORD;
+		DWORD dwSize = sizeof(dwValue);
+		RegQueryValueExW(hKey, L"git_cached_version", NULL, &dwType, (LPBYTE)&dwValue, &dwSize);
+		RegCloseKey(hKey);
+	}
+	return dwValue >= (2 << 24 | 24 << 16);
 }
 
 /*
@@ -3787,6 +3801,9 @@ const char *program_data_config(void)
 
 		// do not use shared windows-wide system config when cygwin hack is active
 		if (is_cygwin_msys2_hack_active())
+			return NULL;
+
+		if (is_new_git_with_new_location())
 			return NULL;
 
 		if (SHGetFolderPathW(NULL, CSIDL_COMMON_APPDATA, NULL, SHGFP_TYPE_CURRENT, wbuffer) != S_OK || wcslen(wbuffer) >= MAX_PATH - 11) /* 11 = len("\\Git\\config") */
