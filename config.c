@@ -1833,8 +1833,12 @@ static int git_config_from_blob_ref(config_fn_t fn,
 char *git_system_config(void)
 {
 	char *system_config = xstrdup_or_null(getenv("GIT_CONFIG_SYSTEM"));
-	if (!system_config)
-		system_config = system_path(ETC_GITCONFIG);
+	if (!system_config) {
+		if (is_new_git_with_new_location() && !is_cygwin_msys2_hack_active())
+			system_config = system_path("..\\" ETC_GITCONFIG);
+		else
+			system_config = system_path(ETC_GITCONFIG);
+	}
 	normalize_path_copy(system_config, system_config);
 	return system_config;
 }
