@@ -3273,9 +3273,9 @@ int is_cygwin_msys2_hack_active(void)
 	DWORD dwType = REG_DWORD;
 	DWORD dwValue = 0;
 	DWORD dwSize = sizeof(dwValue);
-	if (RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\TortoiseGit", NULL, KEY_ALL_ACCESS, &hKey) == ERROR_SUCCESS)
+	if (RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\TortoiseGit", 0, KEY_ALL_ACCESS, &hKey) == ERROR_SUCCESS)
 	{
-		RegQueryValueExW(hKey, L"CygwinHack", NULL, &dwType, &dwValue, &dwSize);
+		RegQueryValueExW(hKey, L"CygwinHack", NULL, &dwType, (LPBYTE)&dwValue, &dwSize);
 		if (dwValue != 1)
 			RegQueryValueExW(hKey, L"Msys2Hack", NULL, &dwType, (LPBYTE)&dwValue, &dwSize);
 		RegCloseKey(hKey);
@@ -3291,7 +3291,7 @@ int is_new_git_with_new_location(void)
 	{
 		DWORD dwType = REG_DWORD;
 		DWORD dwSize = sizeof(dwValue);
-		RegQueryValueExW(hKey, L"git_cached_version", NULL, &dwType, &dwValue, &dwSize);
+		RegQueryValueExW(hKey, L"git_cached_version", NULL, &dwType, (LPBYTE)&dwValue, &dwSize);
 		RegCloseKey(hKey);
 	}
 	return dwValue >= (2 << 24 | 24 << 16);

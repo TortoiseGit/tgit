@@ -45,7 +45,7 @@ static const char *system_prefix(void)
 		HKEY hKey;
 		DWORD dwType = REG_SZ;
 		DWORD dwSize = MAX_PATH;
-		if (RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\TortoiseGit", NULL, KEY_ALL_ACCESS, &hKey) == ERROR_SUCCESS)
+		if (RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\TortoiseGit", 0, KEY_ALL_ACCESS, &hKey) == ERROR_SUCCESS)
 		{
 			if (RegQueryValueExW(hKey, L"MSysGit", NULL, &dwType, (LPBYTE)&lszValue, &dwSize) == ERROR_SUCCESS)
 			{
@@ -75,7 +75,7 @@ static const char *system_prefix(void)
 
 				dwType = REG_DWORD;
 				dwSize = sizeof(DWORD);
-				if (RegQueryValueExW(hKey, L"Msys2Hack", NULL, &dwType,(LPBYTE)&dwMsys2Hack,&dwSize) == ERROR_SUCCESS && dwMsys2Hack) {
+				if (RegQueryValueExW(hKey, L"Msys2Hack", NULL, &dwType, (LPBYTE)&dwMsys2Hack, &dwSize) == ERROR_SUCCESS && dwMsys2Hack) {
 					// for Msys2 the system config is in etc folder, but git.exe is in usr/bin - we also need to strip usr
 					const char *oldsyspath = syspath;
 					syspath = strip_path_suffix(oldsyspath, "usr");
