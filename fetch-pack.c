@@ -40,6 +40,7 @@ static char *negotiation_algorithm;
 static struct strbuf fsck_msg_types = STRBUF_INIT;
 
 /* Remember to update object flag allocation in object.h */
+#undef ALTERNATE // already defined in wingdi.h
 #define COMPLETE	(1U << 0)
 #define ALTERNATE	(1U << 1)
 
