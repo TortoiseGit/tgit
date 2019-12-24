@@ -41,6 +41,7 @@ static struct strbuf fsck_msg_types = STRBUF_INIT;
 static struct string_list uri_protocols = STRING_LIST_INIT_DUP;
 
 /* Remember to update object flag allocation in object.h */
+#undef ALTERNATE // already defined in wingdi.h
 #define COMPLETE	(1U << 0)
 #define ALTERNATE	(1U << 1)
 
