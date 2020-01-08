@@ -147,6 +147,8 @@ static inline int fcntl(int fd, int cmd, ...)
 	return -1;
 }
 extern int vc_exit(int code); // defined in gitdll.dll
+/* do not terminate, but call gitdll exit handler */
+#define exit(code) vc_exit((code) & 0xff)
 #define sigemptyset(x) (void)0
 #define SIG_BLOCK 0
 #define SIG_UNBLOCK 0
