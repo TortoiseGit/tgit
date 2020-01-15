@@ -160,7 +160,7 @@ static void all_attrs_init(struct attr_hashmap *map, struct attr_check *check)
 	 * field and fill each entry with its corresponding git_attr.
 	 */
 	if (size != check->all_attrs_nr) {
-		struct attr_hash_entry *e;
+		struct attr_hash_entry *e = NULL;
 		struct hashmap_iter iter;
 
 		REALLOC_ARRAY(check->all_attrs, size);
