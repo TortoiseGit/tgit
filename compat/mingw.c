@@ -627,7 +627,7 @@ int mingw_unlink(const char *pathname, int handle_in_use_error)
 
 static int is_dir_empty(const wchar_t *wpath)
 {
-	WIN32_FIND_DATAW findbuf;
+	WIN32_FIND_DATAW findbuf = { 0 };
 	HANDLE handle;
 	wchar_t wbuf[MAX_LONG_PATH + 2];
 	wcscpy(wbuf, wpath);
