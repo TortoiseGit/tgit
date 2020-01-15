@@ -1943,7 +1943,7 @@ void git_configset_init(struct config_set *cs)
 
 void git_configset_clear(struct config_set *cs)
 {
-	struct config_set_element *entry;
+	struct config_set_element *entry = NULL;
 	struct hashmap_iter iter;
 	if (!cs->hash_initialized)
 		return;
