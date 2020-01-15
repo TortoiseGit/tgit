@@ -89,7 +89,7 @@ static void free_one_config(struct submodule_entry *entry)
 static void submodule_cache_clear(struct submodule_cache *cache)
 {
 	struct hashmap_iter iter;
-	struct submodule_entry *entry;
+	struct submodule_entry *entry = NULL;
 
 	if (!cache->initialized)
 		return;
