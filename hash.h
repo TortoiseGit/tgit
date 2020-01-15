@@ -440,7 +440,7 @@ static inline unsigned int oidhash(const struct object_id *oid)
 
 static inline int is_null_oid(const struct object_id *oid)
 {
-	static const unsigned char null_hash[GIT_MAX_RAWSZ];
+	static const unsigned char null_hash[GIT_MAX_RAWSZ] = { 0 };
 	return !memcmp(oid->hash, null_hash, GIT_MAX_RAWSZ);
 }
 
