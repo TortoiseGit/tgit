@@ -107,6 +107,7 @@ static int commit_graph_compatible(struct repository *r)
 
 int open_commit_graph(const char *graph_file, int *fd, struct stat *st)
 {
+#if TGIT_ENABLE_COMMIT_GRAPH
 	*fd = git_open(graph_file);
 	if (*fd < 0)
 		return 0;
@@ -115,6 +116,9 @@ int open_commit_graph(const char *graph_file, int *fd, struct stat *st)
 		return 0;
 	}
 	return 1;
+#else
+	return 0;
+#endif
 }
 
 struct commit_graph *load_commit_graph_one_fd_st(int fd, struct stat *st)
