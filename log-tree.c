@@ -144,13 +144,17 @@ static int add_graft_decoration(const struct commit_graft *graft, void *cb_data)
 	return 0;
 }
 
-void load_ref_decorations(struct decoration_filter *filter, int flags)
+void clear_ref_decorations(void)
 {
 	if (decoration_loaded)
 	{
 		free_decoration(&name_decoration);
 		decoration_loaded = 0;
 	}
+}
+
+void load_ref_decorations(struct decoration_filter *filter, int flags)
+{
 	if (!decoration_loaded) {
 		if (filter) {
 			struct string_list_item *item;
