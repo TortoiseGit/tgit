@@ -203,8 +203,7 @@ int is_bare_repository(void)
 
 int have_git_dir(void)
 {
-	return startup_info->have_repository
-		|| the_repository->gitdir;
+	return the_repository->gitdir ? 1 : 0;
 }
 
 const char *get_git_dir(void)
