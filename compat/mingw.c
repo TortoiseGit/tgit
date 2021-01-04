@@ -3995,6 +3995,7 @@ const char *program_data_config(void)
 	if (!initialized)
 	{
 		char pointer[MAX_PATH];
+		PWSTR pszPath;
 		wchar_t wbuffer[MAX_PATH];
 
 		initialized = 1;
@@ -4006,10 +4007,18 @@ const char *program_data_config(void)
 		if (is_new_git_with_new_location())
 			return NULL;
 
-		if (SHGetFolderPathW(NULL, CSIDL_COMMON_APPDATA, NULL, SHGFP_TYPE_CURRENT, wbuffer) != S_OK || wcslen(wbuffer) >= MAX_PATH - 11) /* 11 = len("\\Git\\config") */
+		if (SHGetKnownFolderPath(&FOLDERID_ProgramData, 0, NULL, &pszPath) != S_OK)
 			return NULL;
 
-		wcscat(wbuffer, L"\\Git\\config");
+		if (wcslen(pszPath) >= MAX_PATH - wcslen("\\Git\\config"))
+		{
+			CoTaskMemFree(pszPath);
+			return NULL;
+		}
+
+		wcscpy_s(wbuffer, _countof(wbuffer), pszPath);
+		CoTaskMemFree(pszPath);
+		wcscat_s(wbuffer, _countof(wbuffer), L"\\Git\\config");
 
 		xwcstoutf(pointer, wbuffer, MAX_PATH);
 
