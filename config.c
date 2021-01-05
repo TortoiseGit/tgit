@@ -1834,7 +1834,7 @@ char *git_system_config(void)
 {
 	char *system_config = xstrdup_or_null(getenv("GIT_CONFIG_SYSTEM"));
 	if (!system_config) {
-		if (is_new_git_with_new_location() && !is_cygwin_msys2_hack_active())
+		if (!is_old_git_with_programdata_location() && !is_cygwin_msys2_hack_active())
 			system_config = system_path("..\\" ETC_GITCONFIG);
 		else
 			system_config = system_path(ETC_GITCONFIG);
