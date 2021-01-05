@@ -867,8 +867,12 @@ static struct attr_stack *read_attr(struct index_state *istate,
 static const char *git_etc_gitattributes(void)
 {
 	static const char *system_wide;
-	if (!system_wide)
-		system_wide = system_path("..\\" ETC_GITATTRIBUTES);
+	if (!system_wide) {
+		if (!is_cygwin_msys2_hack_active())
+			system_wide = system_path("..\\" ETC_GITATTRIBUTES);
+		else
+			system_wide = system_path(ETC_GITATTRIBUTES);
+	}
 	return system_wide;
 }
 
