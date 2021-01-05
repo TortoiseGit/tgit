@@ -4513,6 +4513,22 @@ int mingw_have_unix_sockets(void)
 }
 #endif
 
+int is_cygwin_msys2_hack_active(void)
+{
+	HKEY hKey;
+	DWORD dwType = REG_DWORD;
+	DWORD dwValue = 0;
+	DWORD dwSize = sizeof(dwValue);
+	if (RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\TortoiseGit", 0, KEY_ALL_ACCESS, &hKey) == ERROR_SUCCESS)
+	{
+		RegQueryValueExW(hKey, L"CygwinHack", NULL, &dwType, (LPBYTE)&dwValue, &dwSize);
+		if (dwValue != 1)
+			RegQueryValueExW(hKey, L"Msys2Hack", NULL, &dwType, (LPBYTE)&dwValue, &dwSize);
+		RegCloseKey(hKey);
+	}
+	return dwValue == 1;
+}
+
 /*
  * Based on https://stackoverflow.com/questions/43002803
  *
