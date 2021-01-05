@@ -3877,10 +3877,10 @@ int is_cygwin_msys2_hack_active(void)
 	return dwValue == 1;
 }
 
-int is_new_git_with_new_location(void)
+int is_old_git_with_programdata_location(void)
 {
 	HKEY hKey;
-	DWORD dwValue = 0;
+	DWORD dwValue = (2 << 24 | 24 << 16);
 	if (RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\TortoiseGit", 0, KEY_ALL_ACCESS, &hKey) == ERROR_SUCCESS)
 	{
 		DWORD dwType = REG_DWORD;
@@ -3888,7 +3888,7 @@ int is_new_git_with_new_location(void)
 		RegQueryValueExW(hKey, L"git_cached_version", NULL, &dwType, (LPBYTE)&dwValue, &dwSize);
 		RegCloseKey(hKey);
 	}
-	return dwValue >= (2 << 24 | 24 << 16);
+	return dwValue < (2 << 24 | 24 << 16);
 }
 
 /*
@@ -4004,7 +4004,7 @@ const char *program_data_config(void)
 		if (is_cygwin_msys2_hack_active())
 			return NULL;
 
-		if (is_new_git_with_new_location())
+		if (!is_old_git_with_programdata_location())
 			return NULL;
 
 		if (SHGetKnownFolderPath(&FOLDERID_ProgramData, 0, NULL, &pszPath) != S_OK)
