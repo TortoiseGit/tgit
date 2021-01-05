@@ -1680,7 +1680,7 @@ const char *git_etc_gitconfig(void)
 {
 	static const char *system_wide;
 	if (!system_wide) {
-		if (is_new_git_with_new_location() && !is_cygwin_msys2_hack_active())
+		if (!is_old_git_with_programdata_location() && !is_cygwin_msys2_hack_active())
 			system_wide = system_path("..\\" ETC_GITCONFIG);
 		else
 			system_wide = system_path(ETC_GITCONFIG);
