@@ -55,6 +55,7 @@ static const char *system_prefix(void)
 		{
 			if (RegQueryValueExW(hKey, L"MSysGit", NULL, &dwType, (LPBYTE)&lszValue, &dwSize) == ERROR_SUCCESS)
 			{
+				DWORD dwMsys2Hack = 0;
 				char pointer[MAX_PATH];
 				xwcstoutf(pointer, lszValue, MAX_PATH);
 				syspath = strip_path_suffix(pointer, "cmd");
@@ -77,6 +78,15 @@ static const char *system_prefix(void)
 						syspath = xstrdup(configpath);
 					}
 				} while (FALSE);
+
+				dwType = REG_DWORD;
+				dwSize = sizeof(DWORD);
+				if (RegQueryValueExW(hKey, L"Msys2Hack", NULL, &dwType, (LPBYTE)&dwMsys2Hack, &dwSize) == ERROR_SUCCESS && dwMsys2Hack) {
+					// for Msys2 the system config is in etc folder, but git.exe is in usr/bin - we also need to strip usr
+					const char *oldsyspath = syspath;
+					syspath = strip_path_suffix(oldsyspath, "usr");
+					free(oldsyspath);
+				}
 			}
 			RegCloseKey(hKey);
 		}
