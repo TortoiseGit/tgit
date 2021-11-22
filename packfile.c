@@ -360,12 +360,7 @@ void free_all_pack(void)
 		p = *pp;
 		if (!has_open_pack_windows(p))
 		{
-			close_pack_windows(p);
-			if (p->pack_fd != -1) {
-				close(p->pack_fd);
-				pack_open_fds--;
-			}
-			close_pack_index(p);
+			close_pack(p);
 			free(p->bad_object_sha1);
 			*pp = p->next;
 			free(p);
