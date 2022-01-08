@@ -355,6 +355,7 @@ void free_all_pack(void)
 	struct list_head *pos;
 
 	clear_delta_base_cache();
+	close_object_store(the_repository->objects);
 
 	while (*pp) {
 		p = *pp;
