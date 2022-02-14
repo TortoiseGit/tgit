@@ -1281,8 +1281,8 @@ static int index_stream_convert_blob(struct index_state *istate,
 	assert(path);
 	ASSERT(would_convert_to_git_filter_fd(istate, path));
 
-	convert_to_git_filter_fd(istate, path, fd, &sbuf,
-				 get_conv_flags(flags));
+	/* convert_to_git_filter_fd(istate, path, fd, &sbuf,
+				 get_conv_flags(flags));*/
 
 	if (write_object)
 		ret = odb_write_object(istate->repo->objects, sbuf.buf, sbuf.len, OBJ_BLOB,
