@@ -2373,8 +2373,8 @@ static int index_stream_convert_blob(struct index_state *istate,
 	assert(path);
 	assert(would_convert_to_git_filter_fd(istate, path));
 
-	convert_to_git_filter_fd(istate, path, fd, &sbuf,
-				 get_conv_flags(flags));
+	/* convert_to_git_filter_fd(istate, path, fd, &sbuf,
+				 get_conv_flags(flags));*/
 
 	if (write_object)
 		ret = write_object_file(sbuf.buf, sbuf.len, OBJ_BLOB,
