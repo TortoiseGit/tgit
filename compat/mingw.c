@@ -2352,6 +2352,10 @@ static int do_putenv(char **env, const char *name, int size, int free_old)
 		/* otherwise ('key') remove existing entry */
 		size--;
 		memmove(&env[i], &env[i + 1], (size - i) * sizeof(char*));
+		free(name);
+	} else {
+		/* should be deleted, but not found */
+		free(name);
 	}
 	return size;
 }

@@ -229,7 +229,7 @@ static void cmd_log_init_finish(int argc, const char **argv, const char *prefix,
 		rev->sources = &revision_sources;
 	}
 
-	if (mailmap) {
+	if (mailmap && 0) { /* don't load mailmap */
 		rev->mailmap = xcalloc(1, sizeof(struct string_list));
 		read_mailmap(rev->mailmap);
 	}
