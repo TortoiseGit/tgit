@@ -305,7 +305,7 @@ static void cmd_log_init_finish(int argc, const char **argv, const char *prefix,
 		rev->sources = &revision_sources;
 	}
 
-	if (mailmap) {
+	if (mailmap && 0) { /* don't load mailmap */
 		rev->mailmap = xmalloc(sizeof(struct string_list));
 		string_list_init_nodup(rev->mailmap);
 		read_mailmap(rev->mailmap);
