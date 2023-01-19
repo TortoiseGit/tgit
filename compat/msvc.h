@@ -43,7 +43,7 @@ typedef int sigset_t;
 /* Git version infomation */
 #ifndef __MSVC__VERSION
 #define __MSVC__VERSION
-#define GIT_VERSION "2.37.2"
+#define GIT_VERSION "2.37.5"
 #define GIT_USER_AGENT "git/" GIT_VERSION
 #define GIT_BUILT_FROM_COMMIT "(unknown)"
 #endif

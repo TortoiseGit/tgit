@@ -3588,8 +3588,7 @@ static int acls_supported(const char *path)
 	DWORD file_system_flags;
 
 	if (offset &&
-	    xutftowcs_path_ex(wroot, path, MAX_PATH, offset,
-			      MAX_PATH, 0) > 0 &&
+	    xutftowcsn(wroot, path, MAX_PATH, offset) > 0 &&
 	    GetVolumeInformationW(wroot, NULL, 0, NULL, NULL,
 				  &file_system_flags, NULL, 0))
 		return !!(file_system_flags & FILE_PERSISTENT_ACLS);
@@ -3597,7 +3596,7 @@ static int acls_supported(const char *path)
 	return 0;
 }
 
-int is_path_owned_by_current_sid(const char *path)
+int is_path_owned_by_current_sid(const char *path, struct strbuf *report)
 {
 	WCHAR wpath[MAX_PATH];
 	PSID sid = NULL;
@@ -3652,14 +3651,15 @@ int is_path_owned_by_current_sid(const char *path)
 			 * okay, too.
 			 */
 			result = 1;
-		else if (IsWellKnownSid(sid, WinWorldSid) &&
-			 git_env_bool("GIT_TEST_DEBUG_UNSAFE_DIRECTORIES", 0) &&
+		else if (report &&
+			 IsWellKnownSid(sid, WinWorldSid) &&
 			 !acls_supported(path)) {
 			/*
 			 * On FAT32 volumes, ownership is not actually recorded.
 			 */
-			warning("'%s' is on a file system that does not record ownership", path);
-		} else if (git_env_bool("GIT_TEST_DEBUG_UNSAFE_DIRECTORIES", 0)) {
+			strbuf_addf(report, "'%s' is on a file system that does"
+				    "not record ownership\n", path);
+		} else if (report) {
 			LPSTR str1, str2, to_free1 = NULL, to_free2 = NULL;
 
 			if (ConvertSidToStringSidA(sid, &str1))
@@ -3675,7 +3675,10 @@ int is_path_owned_by_current_sid(const char *path)
 				to_free2 = str2;
 			else
 				str2 = "(inconvertible)";
-			warning("'%s' is owned by:\n\t'%s'\nbut the current user is:\n\t'%s'", path, str1, str2);
+			strbuf_addf(report,
+				    "'%s' is owned by:\n"
+				    "\t'%s'\nbut the current user is:\n"
+				    "\t'%s'\n", path, str1, str2);
 			LocalFree(to_free1);
 			LocalFree(to_free2);
 		}

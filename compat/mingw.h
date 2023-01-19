@@ -498,7 +498,7 @@ extern void build_libgit_environment(void);
  * Verifies that the specified path is owned by the user running the
  * current process.
  */
-int is_path_owned_by_current_sid(const char *path);
+int is_path_owned_by_current_sid(const char *path, struct strbuf *report);
 #define is_path_owned_by_current_user is_path_owned_by_current_sid
 
 /**
