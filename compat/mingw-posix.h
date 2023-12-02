@@ -282,7 +282,7 @@ char *mingw_getcwd(char *pointer, int len);
 char *mingw_getenv(const char *name);
 int   mingw_putenv(const char *name);
 
-extern void build_libgit_environment(void);
+extern void build_libgit_environment(const LPWSTR *env);
 
 int mingw_gethostname(char *host, int namelen);
 #define gethostname mingw_gethostname
