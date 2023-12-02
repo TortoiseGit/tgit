@@ -1911,7 +1911,7 @@ static wchar_t *make_environment_block(char **deltaenv)
 	/* copy the environment, leaving space for changes */
 	ALLOC_ARRAY(tmpenv, size + i);
 	if (!libgit_environ)
-		build_libgit_environment();
+		build_libgit_environment(NULL);
 	memcpy(tmpenv, libgit_environ, size * sizeof(char *));
 
 	/* merge supplied environment changes into the temporary environment */
@@ -2493,8 +2493,9 @@ char *mingw_getenv(const char *name)
 	char *value;
 	int pos;
 
+	assert(libgit_environ);
 	if (!libgit_environ)
-		build_libgit_environment();
+		build_libgit_environment(NULL);
 	if (environ_size <= 0)
 		return NULL;
 
@@ -2508,8 +2509,9 @@ char *mingw_getenv(const char *name)
 
 int mingw_putenv(const char *namevalue)
 {
+	assert(libgit_environ);
 	if (!libgit_environ)
-		build_libgit_environment();
+		build_libgit_environment(NULL);
 	ALLOC_GROW(libgit_environ, (environ_size + 1) * sizeof(char*), environ_alloc);
 	environ_size = do_putenv(libgit_environ, namevalue, environ_size, 1);
 	return 0;
@@ -4071,11 +4073,12 @@ void libgit_initialize(void)
 	InitializeCriticalSection(&fscache_cs);
 }
 
-void build_libgit_environment(void)
+void build_libgit_environment(const LPWSTR *env)
 {
 	int i, maxlen;
 	char *buffer;
-	wchar_t *wenv;
+	wchar_t *wenv = env && *env ? *env : NULL;
+	int needsFree = 0;
 
 	/* cleanup old environment */
 	if (libgit_environ) {
@@ -4084,7 +4087,11 @@ void build_libgit_environment(void)
 		free(libgit_environ);
 	}
 
-	wenv = GetEnvironmentStringsW();
+	assert(wenv);
+	if (!wenv) {
+		wenv = GetEnvironmentStringsW();
+		needsFree = 1;
+	}
 	maxlen = 0;
 	i = 0;
 
@@ -4118,7 +4125,8 @@ void build_libgit_environment(void)
 	libgit_environ[i] = NULL;
 	free(buffer);
 
-	FreeEnvironmentStringsW(wenv);
+	if (needsFree)
+		FreeEnvironmentStringsW(wenv);
 
 	/* sort environment for O(log n) getenv / putenv */
 	git_stable_qsort(libgit_environ, i, sizeof(char*), compareenv);
