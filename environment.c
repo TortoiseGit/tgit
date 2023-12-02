@@ -227,9 +227,9 @@ int print_sha1_ellipsis(void)
 	return cached_result;
 }
 
-void reset_git_env(void)
+void reset_git_env(const LPCWSTR *env)
 {
-	build_libgit_environment(); // this resets all environment variables
+	build_libgit_environment(env); // this resets all environment variables
 	FREE_AND_NULL(comment_line_str_to_free);
 	auto_comment_line_char = 0;
 	is_bare_repository_cfg = -1;
