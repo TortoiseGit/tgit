@@ -4487,6 +4487,19 @@ int is_cygwin_msys2_hack_active(void)
 	return dwValue == 1;
 }
 
+int is_new_git_with_appdata(void)
+{
+	HKEY hKey;
+	DWORD dwValue = 0;
+	if (RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\TortoiseGit", 0, KEY_ALL_ACCESS, &hKey) == ERROR_SUCCESS) {
+		DWORD dwType = REG_DWORD;
+		DWORD dwSize = sizeof(dwValue);
+		RegQueryValueExW(hKey, L"git_cached_version", NULL, &dwType, (LPBYTE)&dwValue, &dwSize);
+		RegCloseKey(hKey);
+	}
+	return dwValue >= (2 << 24 | 46 << 16);
+}
+
 /*
  * Based on https://stackoverflow.com/questions/43002803
  *

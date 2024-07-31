@@ -1692,6 +1692,7 @@ char *xdg_config_home_for(const char *subdir, const char *filename)
 		home_config = mkpathdup("%s/.config/%s/%s", home, subdir, filename);
 
 	#ifdef WIN32
+	if (!is_cygwin_msys2_hack_active() && is_new_git_with_appdata())
 	{
 		const char *appdata = getenv("APPDATA");
 		if (appdata && *appdata) {
