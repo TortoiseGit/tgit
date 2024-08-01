@@ -2162,6 +2162,14 @@ static struct ref_store *ref_store_init(struct repository *repo,
 	return refs;
 }
 
+void ref_store_release_and_clear(struct repository *repo)
+{
+	if (!repo->refs_private)
+		return;
+	ref_store_release(repo->refs_private);
+	FREE_AND_NULL(repo->refs_private);
+}
+
 void ref_store_release(struct ref_store *ref_store)
 {
 	ref_store->be->release(ref_store);
