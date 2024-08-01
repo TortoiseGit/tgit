@@ -154,9 +154,10 @@ static struct files_ref_store *files_downcast(struct ref_store *ref_store,
 static void files_ref_store_release(struct ref_store *ref_store)
 {
 	struct files_ref_store *refs = files_downcast(ref_store, 0, "release");
-	free_ref_cache(refs->loose);
+	clear_loose_ref_cache(refs);
 	free(refs->gitcommondir);
 	ref_store_release(refs->packed_ref_store);
+	free(refs->packed_ref_store);
 }
 
 static void files_reflog_path(struct files_ref_store *refs,
