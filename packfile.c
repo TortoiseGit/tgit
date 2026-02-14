@@ -2472,6 +2472,13 @@ void packfile_store_close(struct packfile_store *store)
 	store->midx = NULL;
 }
 
+void packfile_store_close_tgit(struct packfile_store *store)
+{
+	packfile_list_clear(&store->packs);
+	strmap_clear(&store->packs_by_path, 0);
+	store->initialized = false; // needed?
+}
+
 struct odb_packed_read_stream {
 	struct odb_read_stream base;
 	struct packed_git *pack;

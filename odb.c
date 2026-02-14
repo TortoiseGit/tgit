@@ -1089,6 +1089,15 @@ void odb_close(struct object_database *o)
 	close_commit_graph(o);
 }
 
+void odb_close_tgit(struct object_database *o)
+{
+	clear_delta_base_cache();
+	odb_close(o);
+	struct odb_source *source;
+	for (source = o->sources; source; source = source->next)
+		packfile_store_close_tgit(source->packfiles);
+}
+
 static void odb_free_sources(struct object_database *o)
 {
 	while (o->sources) {
