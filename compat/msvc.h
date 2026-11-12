@@ -17,7 +17,7 @@
 /* Git version infomation */
 #ifndef __MSVC__VERSION
 #define __MSVC__VERSION
-#define GIT_VERSION "2.53."
+#define GIT_VERSION "2.53.1"
 #define GIT_USER_AGENT "git/" GIT_VERSION
 #define GIT_BUILT_FROM_COMMIT "(unknown)"
 #endif
