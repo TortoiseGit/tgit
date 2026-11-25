@@ -65,6 +65,12 @@ static const char *system_prefix(void)
 				do {
 					char *configpath;
 #ifdef _WIN64
+					configpath = mkpath("%s\\ucrt64", syspath);
+					if (!access(configpath, F_OK)) {
+						free(syspath);
+						syspath = xstrdup(configpath);
+						break;
+					}
 					configpath = mkpath("%s\\mingw64", syspath);
 					if (!access(configpath, F_OK)) {
 						free(syspath);
